@@ -1,13 +1,22 @@
 import "../scss/App.scss";
+import Terminal from "./Terminal";
 
-type Props = { wasm };
+import React, { useState, useEffect } from "react";
+
+type Props = { wasm: any };
 
 export default function Root(props: Props) {
+  const { wasm } = props;
+
+  // On mount
+  useEffect(() => {
+    console.log("Initializing story!");
+    wasm.init();
+  }, []);
+
   return (
     <div>
-      Hi! Try editing Root.tsx and saving.
-      <br />
-      The website should automatically reload.
+      <Terminal wasm={wasm} />
     </div>
   );
 }
