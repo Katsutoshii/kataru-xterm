@@ -11,6 +11,19 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 static mut STORY: Option<Story> = None;
 static mut CONFIG: Option<Config> = None;
 static mut RUNNER: Option<Runner> = None;
+static mut LINE: Option<Line> = None;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+macro_rules! console_log {
+    // Note that this is using the `log` function imported above during
+    // `bare_bones`
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
 
 #[wasm_bindgen]
 pub fn init() {
@@ -25,31 +38,27 @@ pub fn init() {
 }
 
 #[wasm_bindgen]
-pub fn next(s: &str) -> String {
+pub fn next(input: &str) -> JsValue {
+    console_log!("input: {}", input);
     unsafe {
-        match RUNNER.as_mut().unwrap().next(s) {
-            Some(line) => match &line {
-                Line::Text(text) => text.to_string(),
-                Line::Dialogue(dialogue) => {
-                    let (character, text) = dialogue.iter().next().unwrap();
-                    format!("{}: {}", character, text)
+        LINE = RUNNER.as_mut().unwrap().next(input);
+        console_log!("config: {}", format!("{:?}", CONFIG.as_ref().unwrap()));
+        JsValue::from_serde(LINE.as_ref().unwrap()).unwrap()
+    }
+}
+
+#[wasm_bindgen]
+pub fn autocomplete(input: &str) -> String {
+    unsafe {
+        if let Some(Line::Choices(choices)) = &LINE {
+            for (choice, _passage) in &choices.choices {
+                console_log!("input len: {}", input.len());
+                if choice.starts_with(input) {
+                    return choice[input.len()..].to_string();
                 }
-                _ => "No text".to_string(),
-            },
-            None => "".to_string(),
+            }
         }
     }
-}
 
-#[wasm_bindgen]
-pub fn echo(s: &str) -> String {
-    format!("You said '{}'!", s)
-}
-
-#[wasm_bindgen]
-pub fn autocomplete(s: &str) -> String {
-    if s.chars().next() == Some('i') {
-        return "nstall".to_string();
-    }
     "".to_string()
 }
