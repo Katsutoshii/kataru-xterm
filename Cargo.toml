@@ -31,6 +31,7 @@ wasm-bindgen = {version = "0.2", features = ["serde-serialize"]}
 kataru = {git = "https://github.com/Katsutoshii/kataru"}
 radix_trie = "0.2.1"
 wee_alloc = {version = "0.4.2", optional = true}
+serde = "1.0.118"
 
 # The `web-sys` crate allows you to interact with the various browser APIs,
 # like the DOM.

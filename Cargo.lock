@@ -431,6 +431,7 @@ dependencies = [
  "js-sys",
  "kataru",
  "radix_trie",
+ "serde",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",

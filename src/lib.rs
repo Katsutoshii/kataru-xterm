@@ -1,5 +1,8 @@
 use kataru::*;
 use wasm_bindgen::prelude::*;
+mod tags;
+use tags::*;
+
 // When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
 // allocator.
 //
@@ -38,12 +41,13 @@ pub fn init() {
 }
 
 #[wasm_bindgen]
-pub fn next(input: &str) -> JsValue {
+pub fn next(input: &str) -> TaggedLine {
     console_log!("input: {}", input);
     unsafe {
         LINE = RUNNER.as_mut().unwrap().next(input);
+        let tagged_line = tag_line(LINE.as_ref().unwrap());
         console_log!("config: {}", format!("{:?}", CONFIG.as_ref().unwrap()));
-        JsValue::from_serde(LINE.as_ref().unwrap()).unwrap()
+        tagged_line
     }
 }
 
@@ -53,7 +57,7 @@ pub fn autocomplete(input: &str) -> String {
         if let Some(Line::Choices(choices)) = &LINE {
             for (choice, _passage) in &choices.choices {
                 console_log!("input len: {}", input.len());
-                if choice.starts_with(input) {
+                if choice.starts_with(input) && choice != input {
                     return choice[input.len()..].to_string();
                 }
             }
@@ -61,4 +65,19 @@ pub fn autocomplete(input: &str) -> String {
     }
 
     "".to_string()
+}
+
+#[wasm_bindgen]
+pub fn is_choice(input: &str) -> bool {
+    unsafe {
+        if let Some(Line::Choices(choices)) = &LINE {
+            for (choice, _passage) in &choices.choices {
+                console_log!("input len: {}", input.len());
+                if choice == input {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
