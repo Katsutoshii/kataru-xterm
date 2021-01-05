@@ -37,16 +37,16 @@ pub fn init() {
             CONFIG.as_mut().unwrap(),
             &STORY.as_ref().unwrap(),
         ));
+        console_log!("Initialized story.");
     }
 }
 
 #[wasm_bindgen]
 pub fn next(input: &str) -> TaggedLine {
-    console_log!("input: {}", input);
     unsafe {
         LINE = RUNNER.as_mut().unwrap().next(input);
         let tagged_line = tag_line(&LINE);
-        console_log!("config: {}", format!("{:?}", CONFIG.as_ref().unwrap()));
+        // console_log!("config: {}", format!("{:?}", CONFIG.as_ref().unwrap()));
         tagged_line
     }
 }
@@ -56,7 +56,6 @@ pub fn autocomplete(input: &str) -> String {
     unsafe {
         if let Some(Line::Choices(choices)) = &LINE {
             for (choice, _passage) in &choices.choices {
-                console_log!("input len: {}", input.len());
                 if choice.starts_with(input) && choice != input {
                     return choice[input.len()..].to_string();
                 }
@@ -72,7 +71,6 @@ pub fn is_choice(input: &str) -> bool {
     unsafe {
         if let Some(Line::Choices(choices)) = &LINE {
             for (choice, _passage) in &choices.choices {
-                console_log!("input len: {}", input.len());
                 if choice == input {
                     return true;
                 }

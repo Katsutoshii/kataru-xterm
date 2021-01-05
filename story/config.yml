@@ -2,7 +2,7 @@ state:
   strength: 0
   charisma: 0
 line: 3
-passage: ContinueReading
+passage: Start
 characters:
   Alice:
     description: A character named Alice.

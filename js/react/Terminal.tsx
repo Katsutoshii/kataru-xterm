@@ -12,7 +12,8 @@ type TerminalProps = {
 };
 
 type TerminalState = {
-  awaitingChoice: boolean;
+  isAwaitingChoice: boolean;
+  isValidChoice: boolean;
   input: string;
   suggestion: string;
   cursor: number;
@@ -33,7 +34,8 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     this.fitAddon = new FitAddon();
 
     this.state = {
-      awaitingChoice: false,
+      isAwaitingChoice: false,
+      isValidChoice: false,
       cursor: 0,
       xtermRef: React.createRef(),
       input: "",
@@ -103,7 +105,7 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     let lines = text.split("\n");
     this.terminal().write(lines.shift());
     for (var line of lines) {
-      this.terminal().writeln();
+      this.terminal().writeln("");
       this.terminal().write(line);
     }
   };
@@ -157,23 +159,6 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     this.terminal().write(ansi.BACKSPACE + ansi.LEFT_ARROW.repeat(n));
   };
 
-  // Shift everything on the right hand side
-  clearSuggestion = () => {
-    const { input, cursor, suggestion } = this.state;
-    console.log("clear sug", { input, cursor, suggestion });
-
-    // Move to the end of the input and suggestion
-    const n = input.length - cursor;
-    console.log({ suglen: n + suggestion.length });
-    this.terminal().write(ansi.RIGHT_ARROW.repeat(n + suggestion.length));
-
-    // Delete the suggestion
-    this.terminal().write(ansi.BACKSPACE.repeat(suggestion.length));
-
-    // Reset to original position
-    this.terminal().write(ansi.LEFT_ARROW.repeat(n));
-  };
-
   next = () => {
     console.log(this.state.input);
     const result = this.wasm().next(this.state.input);
@@ -188,36 +173,40 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
         if (typeof text === "string") {
           this.typelns(ansi.cyan(`${speaker}: `) + text.trimEnd());
         }
+        this.setState({ isAwaitingChoice: false });
         break;
       case LineTag.Text:
-        this.typelns(line.trimEnd());
+        this.typelns(ansi.italics(line.trimEnd()));
+        this.setState({ isAwaitingChoice: false });
         break;
       case LineTag.Choices:
-        this.typelns(ansi.cyan("Make a choice: "));
-        this.setState({ awaitingChoice: true });
+        this.terminal().writeln("");
+        this.terminal().write(ansi.grey("> "));
+        this.setState({ isAwaitingChoice: true });
         break;
       case LineTag.InvalidChoice:
         this.typelns("Invalid choice.");
         break;
       case LineTag.None:
         this.typelns("Thanks for playing!");
+        this.setState({ isAwaitingChoice: true });
         break;
     }
   };
 
   onEnter = () => {
-    console.log("onEnter");
+    console.log(this.state);
     if (this.intervalId != null) {
-      console.log("Enter during typing!");
       const { outputPos, output } = this.state;
-      this.terminal().write(output.substring(outputPos));
+      this.writelns(output.substring(outputPos));
       this.stopTyping();
-    } else {
-      if (this.state.awaitingChoice) {
-        this.terminal().writeln("");
-      }
+    } else if (!this.state.isAwaitingChoice || this.state.isValidChoice) {
       this.next();
-      this.setState({ cursor: 0, input: "" });
+      this.setState({
+        cursor: 0,
+        input: "",
+        isValidChoice: false,
+      });
     }
   };
 
@@ -238,8 +227,11 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
         break;
       case ansi.DELETE:
         if (cursor < input.length) {
-          this.terminal().write(ansi.RIGHT_ARROW);
-          this.shiftLeft();
+          const nextInput = input.substr(0, cursor) + input.substr(cursor + 1);
+          console.log(nextInput);
+          this.setState(({ cursor }) =>
+            this.getNextInputState(nextInput, cursor, 0)
+          );
         }
     }
   };
@@ -247,88 +239,100 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
   onBackspace = () => {
     const { cursor } = this.state;
     if (cursor > 0) {
-      this.shiftLeft();
-      this.setState(({ input, cursor }) => {
+      this.setState(({ input, suggestion, cursor }) => {
         const nextInput = input.substr(0, cursor - 1) + input.substr(cursor);
-        return {
-          input: nextInput,
-          cursor: cursor - 1,
-        };
+        return this.getNextInputState(nextInput, cursor, -1);
       });
     }
   };
 
+  getNextInputState = (
+    nextInput: string,
+    cursor: number,
+    cursorDelta: number
+  ) => {
+    if (this.wasm().is_choice(nextInput)) {
+      // If it's a valid choice, type in green.
+      this.terminal().write(
+        ansi.CLEAR_LINE +
+          ansi.START_LINE +
+          ansi.grey("> ") +
+          ansi.green(nextInput)
+      );
+      return {
+        input: nextInput,
+        suggestion: "",
+        cursor: cursor + cursorDelta,
+        isValidChoice: true,
+      };
+    }
+
+    // Otherwise check for new prefix
+    const newSuggestion = this.wasm().autocomplete(nextInput);
+    if (newSuggestion.length > 0) {
+      this.terminal().write(
+        ansi.CLEAR_LINE +
+          ansi.START_LINE +
+          ansi.grey("> ") +
+          nextInput +
+          ansi.grey(newSuggestion) +
+          ansi.left(
+            Math.max(
+              0,
+              newSuggestion.length + (nextInput.length - (cursor + cursorDelta))
+            )
+          )
+      );
+    } else {
+      // Otherwise, it's an invalid input, print as red.
+      console.log({
+        cursor,
+        cursorDelta,
+        nextInput,
+        lefts: Math.max(0, nextInput.length - (cursor + cursorDelta)),
+      });
+      this.terminal().write(
+        ansi.CLEAR_LINE +
+          ansi.START_LINE +
+          ansi.grey("> ") +
+          ansi.red(nextInput) +
+          ansi.left(Math.max(0, nextInput.length - (cursor + cursorDelta)))
+      );
+    }
+    return {
+      input: nextInput,
+      suggestion: newSuggestion,
+      cursor: cursor + cursorDelta,
+      isValidChoice: false,
+    };
+  };
+
+  // Handle alpha numeric text input.
   onTextInput = (data: string) => {
-    if (!this.state.awaitingChoice) {
+    if (!this.state.isAwaitingChoice) {
       return;
     }
 
     // Update state
-    this.setState(({ input, cursor, suggestion }) => {
+    this.setState(({ input, suggestion, cursor }) => {
       // Insert input into current string
       const nextInput = input.substr(0, cursor) + data + input.substr(cursor);
-
-      if (this.wasm().is_choice(nextInput)) {
-        // If it's a valid choice, type in green.
-        this.terminal().write(ansi.BACKSPACE.repeat(input.length));
-        this.terminal().write(ansi.green(nextInput));
-        return {
-          input: nextInput,
-          suggestion: "",
-          cursor: cursor + 1,
-        };
-      } else if (suggestion.length > 0 && suggestion[0] === data) {
-        // If continuing current prefix, just type in white.
-        console.log("Continuing prefix", { suggestion, data });
-        this.terminal().write(ansi.RIGHT_ARROW + ansi.BACKSPACE + data);
-        return {
-          input: nextInput,
-          suggestion: suggestion.substring(1),
-          cursor: cursor + 1,
-        };
-      } else {
-        // Otherwise check for new prefix
-        const newSuggestion = this.wasm().autocomplete(nextInput);
-        if (newSuggestion.length > 0) {
-          console.log("New suggestion", { newSuggestion });
-          this.terminal().write(
-            data + ansi.grey(newSuggestion) + ansi.left(newSuggestion.length)
-          );
-        } else {
-          // Otherwise, it's an invalid input, print as red.
-          console.log("Invalid input", { nextInput });
-          this.clearSuggestion();
-          this.terminal().write(
-            ansi.BACKSPACE.repeat(input.length) + ansi.red(nextInput)
-          );
-        }
-        return {
-          input: nextInput,
-          suggestion: newSuggestion,
-          cursor: cursor + 1,
-        };
-      }
+      return this.getNextInputState(nextInput, cursor, 1);
     });
   };
 
+  // Handle tab key.
   onTab = () => {
-    this.setState(({ input, suggestion }) => {
-      console.log("on tab", { input, suggestion });
-      this.clearSuggestion();
+    this.setState(({ input, suggestion, cursor }) => {
       this.terminal().write(suggestion);
-      return {
-        input: input + suggestion,
-        suggestion: "",
-      };
+      const nextInput = input + suggestion;
+      return this.getNextInputState(nextInput, cursor, suggestion.length);
     });
   };
 
+  // Handle data input.
   onData = (data: string) => {
-    // Clear the suggestion each time input is entered.
-    if (this.state.suggestion.length <= 0) {
-      this.clearSuggestion();
-    }
-
+    console.log({ input: this.state.input });
     const code: Number = data.charCodeAt(0);
 
     if (code === keys.ENTER) {
@@ -354,7 +358,7 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
           ref={this.state.xtermRef}
           onData={this.onData}
           options={{
-            cursorBlink: this.state.awaitingChoice,
+            cursorBlink: true,
             theme: { background: "#00000000" },
             allowTransparency: true,
             windowOptions: { fullscreenWin: true },

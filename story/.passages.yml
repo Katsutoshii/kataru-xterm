@@ -5,7 +5,7 @@ Start:
   - |
     Welcome to Kataru!
     「カタル」へようこそ!
-    Kataru is a dialogue engine build completely on top of YAML with a focus on ease of implementation and simplicity of writing.
+    Kataru is a dialogue engine built completely on top of YAML with a focus on ease of implementation and simplicity of writing.
   - Alice: Hello, my name is Alice. This is how you write a dialogue line in Kataru!
   - Bob: Hi Alice, I'm Bob. Here is another line of dialogue. Isn't it nice how all character names are validated upon parsing?
   - Alice: It sure is, Bob!
