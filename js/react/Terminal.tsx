@@ -1,5 +1,6 @@
 import React from "react";
 import { XTerm } from "xterm-for-react";
+import { FitAddon } from "xterm-addon-fit";
 import * as ansi from "../util/ansi";
 import * as keys from "../util/keycodes";
 
@@ -24,10 +25,12 @@ type TerminalState = {
 class Terminal extends React.Component<TerminalProps, TerminalState> {
   // For the typewriter timer
   intervalId: NodeJS.Timeout;
+  fitAddon: FitAddon;
 
   constructor(props: TerminalProps) {
     super(props);
     this.intervalId = null;
+    this.fitAddon = new FitAddon();
 
     this.state = {
       awaitingChoice: false,
@@ -45,6 +48,9 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     // Add the starting text to the terminal
     this.type(ansi.green("Loading story...\n"));
     this.wasm().init();
+
+    this.terminal().loadAddon(this.fitAddon);
+    this.fitAddon.fit();
     this.next();
   };
 
@@ -192,6 +198,9 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
         break;
       case LineTag.InvalidChoice:
         this.typelns("Invalid choice.");
+        break;
+      case LineTag.None:
+        this.typelns("Thanks for playing!");
         break;
     }
   };
@@ -348,6 +357,7 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
             cursorBlink: this.state.awaitingChoice,
             theme: { background: "#00000000" },
             allowTransparency: true,
+            windowOptions: { fullscreenWin: true },
           }}
         />
       </>

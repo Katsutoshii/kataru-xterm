@@ -9,13 +9,14 @@ pub enum LineTag {
     InvalidChoice,
     Dialogue,
     Text,
+    None,
 }
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TaggedLine {
     tag: LineTag,
-    line: Line,
+    line: Option<Line>,
 }
 
 #[wasm_bindgen]
@@ -29,13 +30,13 @@ impl TaggedLine {
     }
 }
 
-pub fn tag_line(line: &Line) -> TaggedLine {
+pub fn tag_line(line: &Option<Line>) -> TaggedLine {
     let tag = match line {
-        Line::Choices(_) => LineTag::Choices,
-        Line::Dialogue(_) => LineTag::Dialogue,
-        Line::Text(_) => LineTag::Text,
-        Line::InvalidChoice => LineTag::InvalidChoice,
-        _ => LineTag::InvalidChoice,
+        Some(Line::Choices(_)) => LineTag::Choices,
+        Some(Line::Dialogue(_)) => LineTag::Dialogue,
+        Some(Line::Text(_)) => LineTag::Text,
+        Some(Line::InvalidChoice) => LineTag::InvalidChoice,
+        _ => LineTag::None,
     };
 
     TaggedLine {

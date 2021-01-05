@@ -45,7 +45,7 @@ pub fn next(input: &str) -> TaggedLine {
     console_log!("input: {}", input);
     unsafe {
         LINE = RUNNER.as_mut().unwrap().next(input);
-        let tagged_line = tag_line(LINE.as_ref().unwrap());
+        let tagged_line = tag_line(&LINE);
         console_log!("config: {}", format!("{:?}", CONFIG.as_ref().unwrap()));
         tagged_line
     }
