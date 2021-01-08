@@ -1,8 +1,12 @@
 import React from "react";
+import * as xterm from "xterm";
 import { XTerm } from "xterm-for-react";
 import { FitAddon } from "xterm-addon-fit";
+import { breakLines, insertLineBreaks } from "../util/linebreak";
+import { WebLinksAddon } from "xterm-addon-web-links";
 import * as ansi from "../util/ansi";
 import * as keys from "../util/keycodes";
+import { options } from "../util/options";
 
 const TYPE_TIME: number = 25;
 const PUNCTUATION_MULTIPLIER: number = 5;
@@ -26,11 +30,17 @@ type TerminalState = {
 class Terminal extends React.Component<TerminalProps, TerminalState> {
   // For the typewriter timer
   intervalId: NodeJS.Timeout;
+  maxLineLength: number;
+
+  // Addons
+  webLinksAddon: WebLinksAddon;
   fitAddon: FitAddon;
 
   constructor(props: TerminalProps) {
     super(props);
     this.intervalId = null;
+
+    this.webLinksAddon = new WebLinksAddon();
     this.fitAddon = new FitAddon();
 
     this.state = {
@@ -50,9 +60,16 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     // Add the starting text to the terminal
     this.type(ansi.green("Loading story...\n"));
     this.wasm().init();
+    // addEventListener("resize", () => {
+    //   console.log("fit!");
+    //   this.fitAddon.fit();
+    //   this.maxLineLength = this.terminal().cols - 20;
+    // });
 
+    this.terminal().loadAddon(this.webLinksAddon);
     this.terminal().loadAddon(this.fitAddon);
     this.fitAddon.fit();
+    this.maxLineLength = this.terminal().cols;
     this.next();
   };
 
@@ -62,7 +79,7 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     }
   };
 
-  terminal = () => this.state.xtermRef.current.terminal;
+  terminal = (): xterm.Terminal => this.state.xtermRef.current.terminal;
 
   wasm = () => this.props.wasm;
 
@@ -102,7 +119,8 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
   };
 
   writelns = (text: string) => {
-    let lines = text.split("\n");
+    console.log("Writing with maxlen: ", this.maxLineLength);
+    let lines = breakLines(text, this.maxLineLength);
     this.terminal().write(lines.shift());
     for (var line of lines) {
       this.terminal().writeln("");
@@ -116,11 +134,9 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
   };
 
   typelns = (text: string) => {
-    let lines = text.split("\n");
-    // this.type(lines.shift());
-    for (var line of lines) {
-      this.type("\n" + line);
-    }
+    this.terminal().writeln("");
+    console.log("Typing with maxlen: ", this.maxLineLength);
+    this.type(insertLineBreaks(text, this.maxLineLength));
   };
 
   setTypingInterval = () => {
@@ -246,6 +262,7 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     }
   };
 
+  // Ggiven a change in the input, update the state
   getNextInputState = (
     nextInput: string,
     cursor: number,
@@ -285,12 +302,6 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
       );
     } else {
       // Otherwise, it's an invalid input, print as red.
-      console.log({
-        cursor,
-        cursorDelta,
-        nextInput,
-        lefts: Math.max(0, nextInput.length - (cursor + cursorDelta)),
-      });
       this.terminal().write(
         ansi.CLEAR_LINE +
           ansi.START_LINE +
@@ -357,12 +368,7 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
         <XTerm
           ref={this.state.xtermRef}
           onData={this.onData}
-          options={{
-            cursorBlink: true,
-            theme: { background: "#00000000" },
-            allowTransparency: true,
-            windowOptions: { fullscreenWin: true },
-          }}
+          options={options}
         />
       </>
     );
