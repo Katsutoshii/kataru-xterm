@@ -2,7 +2,7 @@ import ReactDOM from "react-dom";
 import React from "react";
 import Root from "./react/Root";
 
-import("../pkg/index.js")
+import("../pkg")
   .then((wasm) => {
     ReactDOM.render(
       React.createElement(Root, { wasm }),

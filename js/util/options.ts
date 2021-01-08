@@ -8,6 +8,5 @@ export const options: ITerminalOptions = {
     wordSeparator: " ",
     fontSize: 14,
     fontFamily: "Monospace",
-    windowsMode: true,
     windowOptions: { fullscreenWin: true },
 };

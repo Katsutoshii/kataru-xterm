@@ -1,9 +1,10 @@
 import React from "react";
 import * as xterm from "xterm";
 import { XTerm } from "xterm-for-react";
-import { FitAddon } from "xterm-addon-fit";
 import { breakLines, insertLineBreaks } from "../util/linebreak";
 import { WebLinksAddon } from "xterm-addon-web-links";
+import { FitAddon } from "xterm-addon-fit";
+import { WebglAddon } from "xterm-addon-webgl";
 import * as ansi from "../util/ansi";
 import * as keys from "../util/keycodes";
 import { options } from "../util/options";
@@ -12,7 +13,7 @@ const TYPE_TIME: number = 25;
 const PUNCTUATION_MULTIPLIER: number = 5;
 
 type TerminalProps = {
-  wasm: any;
+  wasm: typeof import("../../pkg");
 };
 
 type TerminalState = {
@@ -34,6 +35,7 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
 
   // Addons
   webLinksAddon: WebLinksAddon;
+  webglAddon: WebglAddon;
   fitAddon: FitAddon;
 
   constructor(props: TerminalProps) {
@@ -41,6 +43,7 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     this.intervalId = null;
 
     this.webLinksAddon = new WebLinksAddon();
+    this.webglAddon = new WebglAddon();
     this.fitAddon = new FitAddon();
 
     this.state = {
@@ -60,13 +63,9 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     // Add the starting text to the terminal
     this.type(ansi.green("Loading story...\n"));
     this.wasm().init();
-    // addEventListener("resize", () => {
-    //   console.log("fit!");
-    //   this.fitAddon.fit();
-    //   this.maxLineLength = this.terminal().cols - 20;
-    // });
 
     this.terminal().loadAddon(this.webLinksAddon);
+    // this.terminal().loadAddon(this.webglAddon); // Broken
     this.terminal().loadAddon(this.fitAddon);
     this.fitAddon.fit();
     this.maxLineLength = this.terminal().cols;
@@ -81,7 +80,7 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
 
   terminal = (): xterm.Terminal => this.state.xtermRef.current.terminal;
 
-  wasm = () => this.props.wasm;
+  wasm = (): typeof import("../../pkg") => this.props.wasm;
 
   timer = () => {
     const { output, outputPos, outputPause } = this.state;
@@ -119,7 +118,6 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
   };
 
   writelns = (text: string) => {
-    console.log("Writing with maxlen: ", this.maxLineLength);
     let lines = breakLines(text, this.maxLineLength);
     this.terminal().write(lines.shift());
     for (var line of lines) {
@@ -135,7 +133,6 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
 
   typelns = (text: string) => {
     this.terminal().writeln("");
-    console.log("Typing with maxlen: ", this.maxLineLength);
     this.type(insertLineBreaks(text, this.maxLineLength));
   };
 
@@ -176,12 +173,10 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
   };
 
   next = () => {
-    console.log(this.state.input);
     const result = this.wasm().next(this.state.input);
     const LineTag = this.wasm().LineTag;
     const tag = result.tag();
     const line = result.line();
-    console.log({ tag, line }, LineTag.Text);
 
     switch (tag) {
       case LineTag.Dialogue:
@@ -211,7 +206,6 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
   };
 
   onEnter = () => {
-    console.log(this.state);
     if (this.intervalId != null) {
       const { outputPos, output } = this.state;
       this.writelns(output.substring(outputPos));
@@ -244,7 +238,6 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
       case ansi.DELETE:
         if (cursor < input.length) {
           const nextInput = input.substr(0, cursor) + input.substr(cursor + 1);
-          console.log(nextInput);
           this.setState(({ cursor }) =>
             this.getNextInputState(nextInput, cursor, 0)
           );
@@ -343,7 +336,6 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
 
   // Handle data input.
   onData = (data: string) => {
-    console.log({ input: this.state.input });
     const code: Number = data.charCodeAt(0);
 
     if (code === keys.ENTER) {
