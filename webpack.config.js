@@ -39,7 +39,7 @@ module.exports = (_, { mode }) => ({
         exclude: /node_modules/,
         use: ["raw-loader", "glslify-loader"],
       },
-    ],
+    ]
   },
   resolve: {
     extensions: [".ts", ".tsx", ".js", ".jsx"],

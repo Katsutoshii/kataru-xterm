@@ -1,13 +1,12 @@
 import React from "react";
 import * as xterm from "xterm";
-import { XTerm } from "xterm-for-react";
+import XTerm from "./XTerm";
 import { breakLines, insertLineBreaks } from "../util/linebreak";
 import { WebLinksAddon } from "xterm-addon-web-links";
 import { FitAddon } from "xterm-addon-fit";
-import { WebglAddon } from "xterm-addon-webgl";
 import * as ansi from "../util/ansi";
 import * as keys from "../util/keycodes";
-import { options } from "../util/options";
+import { options } from "../util/xtermOptions";
 
 const TYPE_TIME: number = 25;
 const PUNCTUATION_MULTIPLIER: number = 5;
@@ -35,7 +34,6 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
 
   // Addons
   webLinksAddon: WebLinksAddon;
-  webglAddon: WebglAddon;
   fitAddon: FitAddon;
 
   constructor(props: TerminalProps) {
@@ -43,7 +41,6 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     this.intervalId = null;
 
     this.webLinksAddon = new WebLinksAddon();
-    this.webglAddon = new WebglAddon();
     this.fitAddon = new FitAddon();
 
     this.state = {
