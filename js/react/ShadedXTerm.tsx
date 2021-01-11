@@ -1,6 +1,7 @@
 import * as React from "react";
-import PropTypes from "prop-types";
 import { WebglAddon } from "xterm-addon-webgl";
+import { WebLinksAddon } from "xterm-addon-web-links";
+import { FitAddon } from "xterm-addon-fit";
 import * as THREE from "three";
 import * as PP from "postprocessing";
 
@@ -24,11 +25,6 @@ interface IProps {
   options?: ITerminalOptions;
 
   /**
-   * An array of XTerm addons to load along with the terminal.
-   */
-  addons?: Array<ITerminalAddon>;
-
-  /**
    * Adds an event listener for when a data event fires. This happens for
    * example when the user types or pastes into the terminal. The event value
    * is whatever `string` results, in a typical setup, this should be passed
@@ -40,7 +36,7 @@ interface IProps {
 const SCALE_FACTOR_LOW: number = 0.012;
 const SCALE_FACTOR_HIGH: number = 0.15;
 
-export default class Xterm extends React.Component<IProps> {
+export default class ShadedXTerm extends React.Component<IProps> {
   /**
    * The ref for the containing element.
    */
@@ -66,12 +62,6 @@ export default class Xterm extends React.Component<IProps> {
   timeUniforms: any;
   scaleFactorUniforms: any;
   scaleFactor: number;
-
-  static propTypes = {
-    className: PropTypes.string,
-    options: PropTypes.object,
-    onData: PropTypes.func,
-  };
 
   constructor(props: IProps) {
     super(props);
@@ -151,24 +141,6 @@ export default class Xterm extends React.Component<IProps> {
     }
 
     this.animate();
-  };
-
-  onData = (data: string) => {
-    const code: Number = data.charCodeAt(0);
-    if (code === KEYS.ENTER || code == KEYS.TAB) {
-      this.scaleFactor = SCALE_FACTOR_HIGH;
-      for (let i = 0; i < this.scaleFactorUniforms.length; i++) {
-        console.log("Setting scale factor", this.scaleFactor);
-        this.scaleFactorUniforms[i].value = this.scaleFactor;
-      }
-      setTimeout(() => {
-        this.scaleFactor = SCALE_FACTOR_LOW;
-        for (let i = 0; i < this.scaleFactorUniforms.length; i++) {
-          this.scaleFactorUniforms[i].value = this.scaleFactor;
-        }
-      }, 250);
-    }
-    this.props.onData(data);
   };
 
   startAnimate = () => {
@@ -256,12 +228,38 @@ export default class Xterm extends React.Component<IProps> {
     this.startAnimate();
   };
 
+  onData = (data: string) => {
+    const code: Number = data.charCodeAt(0);
+    if (code === KEYS.ENTER || code == KEYS.TAB) {
+      this.scaleFactor = SCALE_FACTOR_HIGH;
+      for (let i = 0; i < this.scaleFactorUniforms.length; i++) {
+        console.log("Setting scale factor", this.scaleFactor);
+        this.scaleFactorUniforms[i].value = this.scaleFactor;
+      }
+      setTimeout(() => {
+        this.scaleFactor = SCALE_FACTOR_LOW;
+        for (let i = 0; i < this.scaleFactorUniforms.length; i++) {
+          this.scaleFactorUniforms[i].value = this.scaleFactor;
+        }
+      }, 250);
+    }
+    this.props.onData(data);
+  };
+
   componentDidMount = () => {
     if (this.terminalRef.current) {
       // Creates the terminal within the container element.
       this.terminal.open(this.terminalRef.current);
-      this.terminal.loadAddon(new WebglAddon());
 
+      // Load addons
+      const fitAddon = new FitAddon();
+      this.terminal.loadAddon(fitAddon);
+      fitAddon.fit();
+
+      this.terminal.loadAddon(new WebglAddon());
+      this.terminal.loadAddon(new WebLinksAddon());
+
+      // Initialize shader
       this.webgl_init();
     }
   };
@@ -271,7 +269,7 @@ export default class Xterm extends React.Component<IProps> {
     this.terminal.dispose();
   };
 
-  render() {
+  render = () => {
     return <div className={this.props.className} ref={this.terminalRef} />;
-  }
+  };
 }

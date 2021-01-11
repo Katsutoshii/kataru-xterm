@@ -1,16 +1,16 @@
 import "../scss/App.scss";
-import Terminal from "./Terminal";
+import KataruXTerm from "./KataruXTerm";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 
-type Props = { wasm: any };
+type Props = { wasm: typeof import("../../pkg") };
 
 export default function Root(props: Props) {
   const { wasm } = props;
 
   return (
     <div>
-      <Terminal wasm={wasm} />
+      <KataruXTerm wasm={wasm} />
     </div>
   );
 }
