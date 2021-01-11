@@ -4,7 +4,7 @@ import { WebglAddon } from "xterm-addon-webgl";
 import * as THREE from "three";
 import * as PP from "postprocessing";
 
-import * as ansi from "../util/ansi";
+import * as KEYS from "../util/keycodes";
 import "xterm/css/xterm.css";
 import glitchShader from "../../shaders/glitch.glsl";
 
@@ -37,7 +37,8 @@ interface IProps {
   onData?(data: string): void;
 }
 
-const FPMS: number = 1000.0 / 60.0;
+const SCALE_FACTOR_LOW: number = 0.012;
+const SCALE_FACTOR_HIGH: number = 0.15;
 
 export default class Xterm extends React.Component<IProps> {
   /**
@@ -63,6 +64,8 @@ export default class Xterm extends React.Component<IProps> {
   animationId: any;
   passes: any;
   timeUniforms: any;
+  scaleFactorUniforms: any;
+  scaleFactor: number;
 
   static propTypes = {
     className: PropTypes.string,
@@ -74,6 +77,7 @@ export default class Xterm extends React.Component<IProps> {
     super(props);
 
     this.terminalRef = React.createRef();
+    this.scaleFactor = SCALE_FACTOR_LOW;
 
     this.setupTerminal();
   }
@@ -83,7 +87,7 @@ export default class Xterm extends React.Component<IProps> {
     this.terminal = new Terminal(this.props.options);
 
     // Create Listeners
-    this.terminal.onData(this.props.onData);
+    this.terminal.onData(this.onData);
   }
 
   getXTermLayers = () => {
@@ -124,10 +128,6 @@ export default class Xterm extends React.Component<IProps> {
   };
 
   refreshTextures = () => {
-    // const now = performance.now();
-    // if (now - this.lastRenderTime < 1000 / 60) {
-    //   return;
-    // }
     for (const texture of this.textures) {
       texture.needsUpdate = true;
     }
@@ -151,15 +151,36 @@ export default class Xterm extends React.Component<IProps> {
     }
 
     this.animate();
-    // this.refreshTextures();
+  };
+
+  onData = (data: string) => {
+    const code: Number = data.charCodeAt(0);
+    if (code === KEYS.ENTER || code == KEYS.TAB) {
+      this.scaleFactor = SCALE_FACTOR_HIGH;
+      for (let i = 0; i < this.scaleFactorUniforms.length; i++) {
+        console.log("Setting scale factor", this.scaleFactor);
+        this.scaleFactorUniforms[i].value = this.scaleFactor;
+      }
+      setTimeout(() => {
+        this.scaleFactor = SCALE_FACTOR_LOW;
+        for (let i = 0; i < this.scaleFactorUniforms.length; i++) {
+          this.scaleFactorUniforms[i].value = this.scaleFactor;
+        }
+      }, 250);
+    }
+    this.props.onData(data);
   };
 
   startAnimate = () => {
     const fps = 1000 / 60;
     this.lastRenderTime = fps;
+    for (const pass of this.passes) {
+      console.log(
+        pass.getFullscreenMaterial() && pass.getFullscreenMaterial().uniforms
+      );
+    }
     this.timeUniforms = this.passes
       .filter((pass) => {
-        console.log({ pass });
         return (
           pass.getFullscreenMaterial() &&
           pass.getFullscreenMaterial().uniforms.time !== undefined
@@ -167,6 +188,18 @@ export default class Xterm extends React.Component<IProps> {
       })
       .map((pass) => {
         return pass.getFullscreenMaterial().uniforms.time;
+      });
+
+    this.scaleFactorUniforms = this.passes
+      .filter((pass) => {
+        return (
+          pass.getFullscreenMaterial() &&
+          pass.getFullscreenMaterial().uniforms.e0ScaleFactor !== undefined
+        );
+      })
+      .map((pass) => {
+        console.log({ scaleUniformPass: pass });
+        return pass.getFullscreenMaterial().uniforms.e0ScaleFactor;
       });
 
     this.clock.start();
@@ -205,14 +238,21 @@ export default class Xterm extends React.Component<IProps> {
         null,
         new PP.Effect("filmShader", glitchShader, {
           blendFunction: PP.BlendFunction.NORMAL,
+          uniforms: new Map(
+            Object.entries({
+              scaleFactor: new THREE.Uniform(this.scaleFactor),
+            })
+          ),
         })
       ),
     ];
     for (const pass of this.passes) {
       this.composer.addPass(pass);
+      if (pass.getFullscreenMaterial()) {
+        console.log({ uniform: pass.getFullscreenMaterial().uniforms });
+      }
     }
 
-    this.lastRenderTime = FPMS;
     this.startAnimate();
   };
 

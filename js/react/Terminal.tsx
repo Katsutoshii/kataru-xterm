@@ -4,8 +4,8 @@ import XTerm from "./XTerm";
 import { breakLines, insertLineBreaks } from "../util/linebreak";
 import { WebLinksAddon } from "xterm-addon-web-links";
 import { FitAddon } from "xterm-addon-fit";
-import * as ansi from "../util/ansi";
-import * as keys from "../util/keycodes";
+import * as ANSI from "../util/ansi";
+import * as KEYS from "../util/keycodes";
 import { options } from "../util/xtermOptions";
 
 const TYPE_TIME: number = 25;
@@ -58,7 +58,7 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
 
   componentDidMount = () => {
     // Add the starting text to the terminal
-    this.type(ansi.green("Loading story...\n"));
+    this.type(ANSI.green("Loading story...\n"));
     this.wasm().init();
 
     this.terminal().loadAddon(this.webLinksAddon);
@@ -161,12 +161,12 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     // Overwrite everything to right of cursor, shifted left by one.
     for (let i = 0; i < n; ++i) {
       this.terminal().write(
-        ansi.BACKSPACE + this.state.input[cursor + i] + ansi.RIGHT_ARROW
+        ANSI.BACKSPACE + this.state.input[cursor + i] + ANSI.RIGHT_ARROW
       );
     }
 
     // Delete the last character, then reset the cursor position to its original.
-    this.terminal().write(ansi.BACKSPACE + ansi.LEFT_ARROW.repeat(n));
+    this.terminal().write(ANSI.BACKSPACE + ANSI.LEFT_ARROW.repeat(n));
   };
 
   next = () => {
@@ -179,17 +179,17 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
       case LineTag.Dialogue:
         const [speaker, text] = Object.entries(line)[0];
         if (typeof text === "string") {
-          this.typelns(ansi.cyan(`${speaker}: `) + text.trimEnd());
+          this.typelns(ANSI.cyan(`${speaker}: `) + text.trimEnd());
         }
         this.setState({ isAwaitingChoice: false });
         break;
       case LineTag.Text:
-        this.typelns(ansi.italics(line.trimEnd()));
+        this.typelns(ANSI.italics(line.trimEnd()));
         this.setState({ isAwaitingChoice: false });
         break;
       case LineTag.Choices:
         this.terminal().writeln("");
-        this.terminal().write(ansi.grey("> "));
+        this.terminal().write(ANSI.grey("> "));
         this.setState({ isAwaitingChoice: true });
         break;
       case LineTag.InvalidChoice:
@@ -220,19 +220,19 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
   onArrow = (data: string) => {
     const { input, cursor } = this.state;
     switch (data) {
-      case ansi.RIGHT_ARROW:
+      case ANSI.RIGHT_ARROW:
         if (cursor < input.length) {
           this.setState(({ cursor }) => ({ cursor: cursor + 1 }));
           this.terminal().write(data);
         }
         break;
-      case ansi.LEFT_ARROW:
+      case ANSI.LEFT_ARROW:
         if (cursor > 0) {
           this.setState(({ cursor }) => ({ cursor: cursor - 1 }));
           this.terminal().write(data);
         }
         break;
-      case ansi.DELETE:
+      case ANSI.DELETE:
         if (cursor < input.length) {
           const nextInput = input.substr(0, cursor) + input.substr(cursor + 1);
           this.setState(({ cursor }) =>
@@ -261,10 +261,10 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     if (this.wasm().is_choice(nextInput)) {
       // If it's a valid choice, type in green.
       this.terminal().write(
-        ansi.CLEAR_LINE +
-          ansi.START_LINE +
-          ansi.grey("> ") +
-          ansi.green(nextInput)
+        ANSI.CLEAR_LINE +
+          ANSI.START_LINE +
+          ANSI.grey("> ") +
+          ANSI.green(nextInput)
       );
       return {
         input: nextInput,
@@ -278,12 +278,12 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     const newSuggestion = this.wasm().autocomplete(nextInput);
     if (newSuggestion.length > 0) {
       this.terminal().write(
-        ansi.CLEAR_LINE +
-          ansi.START_LINE +
-          ansi.grey("> ") +
+        ANSI.CLEAR_LINE +
+          ANSI.START_LINE +
+          ANSI.grey("> ") +
           nextInput +
-          ansi.grey(newSuggestion) +
-          ansi.left(
+          ANSI.grey(newSuggestion) +
+          ANSI.left(
             Math.max(
               0,
               newSuggestion.length + (nextInput.length - (cursor + cursorDelta))
@@ -293,11 +293,11 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
     } else {
       // Otherwise, it's an invalid input, print as red.
       this.terminal().write(
-        ansi.CLEAR_LINE +
-          ansi.START_LINE +
-          ansi.grey("> ") +
-          ansi.red(nextInput) +
-          ansi.left(Math.max(0, nextInput.length - (cursor + cursorDelta)))
+        ANSI.CLEAR_LINE +
+          ANSI.START_LINE +
+          ANSI.grey("> ") +
+          ANSI.red(nextInput) +
+          ANSI.left(Math.max(0, nextInput.length - (cursor + cursorDelta)))
       );
     }
     return {
@@ -335,13 +335,13 @@ class Terminal extends React.Component<TerminalProps, TerminalState> {
   onData = (data: string) => {
     const code: Number = data.charCodeAt(0);
 
-    if (code === keys.ENTER) {
+    if (code === KEYS.ENTER) {
       this.onEnter();
-    } else if (code === keys.BACKSPACE) {
+    } else if (code === KEYS.BACKSPACE) {
       this.onBackspace();
-    } else if (code === keys.ARROW) {
+    } else if (code === KEYS.ARROW) {
       this.onArrow(data);
-    } else if (code === keys.TAB) {
+    } else if (code === KEYS.TAB) {
       this.onTab();
     } else if (code < 32) {
       // Do nothing for other control characters

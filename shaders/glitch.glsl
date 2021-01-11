@@ -8,6 +8,7 @@
 //               https://github.com/ashima/webgl-noise
 //               https://github.com/stegu/webgl-noise
 // 
+uniform float scaleFactor;
 
 vec3 mod289(vec3 x) {
   return x - floor(x * (1.0 / 289.0)) * 289.0;
@@ -79,10 +80,10 @@ float rand(vec2 co)
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 {
     // Create large, incidental noise waves
-    float noise = max(0.0, snoise(vec2(time*0.2, uv.y * 0.3)) - 0.3) * (0.01);
+    float noise = max(0.0, snoise(vec2(time*0.2, uv.y * 0.3)) - 0.3) * scaleFactor;
     
     // Offset by smaller, constant noise waves
-    noise = noise + (snoise(vec2(time*4.0, uv.y * 2.4)) - 0.5) * 0.015;
+    noise = noise + (snoise(vec2(time*4.0, uv.y * 2.4)) - 0.5) * scaleFactor;
     
     // Apply the noise as x displacement for every line
     float xpos = uv.x - noise * noise * 0.15;
@@ -98,6 +99,6 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     }
     
     // Shift green/blue channels (using the red channel)
-    outputColor.g = mix(outputColor.r, texture(inputBuffer, vec2(xpos + noise * 0.05, uv.y)).g, 0.8);
-    outputColor.b = mix(outputColor.r, texture(inputBuffer, vec2(xpos - noise * 0.05, uv.y)).b, 0.8);
+    outputColor.g = mix(outputColor.r, texture(inputBuffer, vec2(xpos + noise * 0.05, uv.y)).g, 0.75);
+    outputColor.b = mix(outputColor.r, texture(inputBuffer, vec2(xpos - noise * 0.05, uv.y)).b, 0.75);
 }

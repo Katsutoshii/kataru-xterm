@@ -13,6 +13,7 @@ Start:
   - choices:
       continue: ContinueReading
       stop: End
+      fight: TryToFight
 
 ContinueReading:
   - Alice: I'm so glad you chose to keep reading! Just for that, I'll go ahead and increase your charisma for you :)
