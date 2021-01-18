@@ -17,11 +17,11 @@ export const BOLD = ESC + "1m"
 export const ITALICS = ESC + "3m"
 export const UNDERLINE = ESC + "4m"
 
-const move = (n: number, code: string): string => n > 0 ? ESC + n + code : "";
+export const move = (n: number, code: string): string => n > 0 ? ESC + n + code : "";
 export const right = (n: number) => move(n, "C");
 export const left = (n: number) => move(n, "D");
 
-const colored = (text: string, color: string): string => color + text + RESET;
+export const colored = (text: string, color: string): string => color + text + RESET;
 export const grey = (text: string) => colored(text, GREY);
 export const green = (text: string) => colored(text, GREEN);
 export const cyan = (text: string) => colored(text, CYAN);

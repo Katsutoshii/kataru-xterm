@@ -34,6 +34,9 @@ export default class XTermTyper {
         this.onInputChanged = onInputChanged.bind(this);
     }
 
+    triggerInputChanged = () =>
+        this.onInputChanged(this.input, this.inputPos);
+
     timer = () => {
         // Skip typing for this frame if output is paused (used to wait longer for certain chars).
         if (this.outputPause > 0) {
@@ -134,7 +137,7 @@ export default class XTermTyper {
                 if (this.inputPos < this.input.length) {
                     this.input = this.input.substr(0, this.inputPos) + this.input.substr(this.inputPos + 1);
                 }
-                this.onInputChanged(this.input, this.inputPos);
+                this.triggerInputChanged();
                 break;
         }
     };
@@ -143,7 +146,7 @@ export default class XTermTyper {
         if (this.inputPos > 0) {
             this.input = this.input.substr(0, this.inputPos - 1) + this.input.substr(this.inputPos);
             this.inputPos -= 1;
-            this.onInputChanged(this.input, this.inputPos);
+            this.triggerInputChanged();
         }
     };
 
@@ -152,6 +155,6 @@ export default class XTermTyper {
         this.input = this.input.substr(0, this.inputPos) + data + this.input.substr(this.inputPos);
         this.inputPos += data.length;
 
-        this.onInputChanged(this.input, this.inputPos);
+        this.triggerInputChanged();
     };
 };

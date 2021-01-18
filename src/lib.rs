@@ -1,7 +1,12 @@
 use kataru::*;
 use wasm_bindgen::prelude::*;
-mod tags;
-use tags::*;
+
+#[macro_use]
+mod logger;
+mod tagger;
+
+use logger::log;
+use tagger::LineTag;
 
 // When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
 // allocator.
@@ -17,22 +22,10 @@ static mut RUNNER: Option<Runner> = None;
 static mut LINE: Option<Line> = None;
 
 #[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
-macro_rules! console_log {
-    // Note that this is using the `log` function imported above during
-    // `bare_bones`
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
-
-#[wasm_bindgen]
 pub fn init() {
     unsafe {
-        STORY = Some(Story::parse(include_str!("../story/.passages.yml")).unwrap());
-        CONFIG = Some(Config::parse(include_str!("../story/config.yml")).unwrap());
+        STORY = Some(Story::deserialize(include_bytes!("../pkg/story")));
+        CONFIG = Some(Config::deserialize(include_bytes!("../pkg/config")));
         RUNNER = Some(Runner::new(
             CONFIG.as_mut().unwrap(),
             &STORY.as_ref().unwrap(),
@@ -42,13 +35,16 @@ pub fn init() {
 }
 
 #[wasm_bindgen]
-pub fn next(input: &str) -> TaggedLine {
+pub fn next(input: &str) -> JsValue {
     unsafe {
         LINE = RUNNER.as_mut().unwrap().next(input);
-        let tagged_line = tag_line(&LINE);
-        // console_log!("config: {}", format!("{:?}", CONFIG.as_ref().unwrap()));
-        tagged_line
+        JsValue::from_serde(&LINE).unwrap()
     }
+}
+
+#[wasm_bindgen]
+pub fn tag() -> LineTag {
+    unsafe { LineTag::tag(&LINE) }
 }
 
 #[wasm_bindgen]

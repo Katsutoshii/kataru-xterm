@@ -10,6 +10,12 @@ Start:
   - choices:
       continue: ContinueReading
       stop: End
+      ...: TimesUp
+    timeout: 20
+
+TimesUp:
+  - You took too long to decide! I guess you're quiting then...
+  - goto: End
 
 ContinueReading:
   - Alice: I'm so glad you chose to keep reading! Just for that, I'll go ahead and increase your charisma for you :)
@@ -21,3 +27,8 @@ ContinueReading:
   - choices:
       fight: TryToFight
       train: Train
+      ...: TimesUp
+    timeout: 20
+
+End:
+  - The end. Thanks for playing!

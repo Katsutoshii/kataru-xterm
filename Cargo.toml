@@ -2,9 +2,9 @@
 [package]
 authors = ["You <you@example.com>"]
 categories = ["wasm"]
-description = "My super awesome Rust, WebAssembly, and Webpack project!"
+description = "Kataru XTerm"
 edition = "2018"
-name = "rust-webpack-template"
+name = "kataru-xterm"
 readme = "README.md"
 version = "0.1.0"
 
@@ -28,7 +28,7 @@ wasm-bindgen = {version = "0.2", features = ["serde-serialize"]}
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. However, it is slower than the default
 # allocator, so it's not enabled by default.
-kataru = {git = "https://github.com/Katsutoshii/kataru"}
+kataru = {git = "https://github.com/Katsutoshii/kataru", branch = "main"}
 radix_trie = "0.2.1"
 serde = "1.0.118"
 wee_alloc = {version = "0.4.2", optional = true}
@@ -54,4 +54,4 @@ wasm-bindgen-futures = "0.3.22"
 wasm-bindgen-test = "0.2.45"
 
 [build-dependencies]
-kataru = {git = "https://github.com/Katsutoshii/kataru"}
+kataru = {git = "https://github.com/Katsutoshii/kataru", branch = "main"}

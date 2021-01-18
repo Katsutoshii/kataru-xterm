@@ -11,13 +11,8 @@ type KataruXTermProps = {
 };
 
 type KataruXTermState = {
-  isAwaitingChoice: boolean;
-  isValidChoice: boolean;
-  suggestion: string;
   xtermRef: React.RefObject<XTerm>;
 };
-
-const PROMPT: string = ANSI.CLEAR_LINE + ANSI.START_LINE + ANSI.grey("> ");
 
 export default class KataruXTerm extends React.Component<
   KataruXTermProps,
@@ -26,75 +21,135 @@ export default class KataruXTerm extends React.Component<
   typer: XTermTyper;
   wasm: typeof import("../../pkg");
   terminal: xterm.Terminal;
+  timeoutIntervalId: NodeJS.Timeout;
+  timeRemaining: number;
+  isAwaitingChoice: boolean;
+  isValidChoice: boolean;
+  suggestion: string;
 
   constructor(props: KataruXTermProps) {
     super(props);
     this.wasm = props.wasm;
+    this.isAwaitingChoice = false;
+    this.isValidChoice = false;
+    this.suggestion = "";
 
     this.state = {
-      isAwaitingChoice: false,
-      isValidChoice: false,
       xtermRef: React.createRef(),
-      suggestion: "",
     };
   }
 
+  /// Returns an ANSI sequence to clear the line and write the prompt.
+  /// If no timeout, returns `>>>` in grey.
+  /// If a timeout is given, returns `TT>` where TT is the zero padded time remaining.
+  /// With less than 10 seconds remaining, returns the prompt in red.
+  prompt = (): string =>
+    ANSI.CLEAR_LINE +
+    ANSI.START_LINE +
+    ANSI.colored(
+      (this.timeoutIntervalId != null
+        ? this.timeRemaining.toString().padStart(2, "0")
+        : ">>") + "> ",
+      this.timeoutIntervalId != null && this.timeRemaining < 10
+        ? ANSI.RED
+        : ANSI.GREY
+    );
+
+  setTimeoutInterval = (timeout: number) => {
+    if (this.timeoutIntervalId == null) {
+      this.timeRemaining = timeout;
+      this.timeoutIntervalId = setInterval(this.timer, 1000);
+    }
+  };
+
+  clearTimeoutInterval = () => {
+    if (this.timeoutIntervalId != null) {
+      clearInterval(this.timeoutIntervalId);
+      this.timeoutIntervalId = null;
+    }
+  };
+
+  timer = () => {
+    this.typer.triggerInputChanged();
+    this.timeRemaining -= 1;
+
+    if (this.timeRemaining <= 0) {
+      this.clearTimeoutInterval();
+      this.typer.clearInput();
+      this.typer.onTextInput("...");
+      this.next();
+    }
+  };
+
   onInputChanged = (input: string, inputPos: number) => {
+    console.log("Input changed!");
+
     // If it's a valid choice, type in green.
     if (this.wasm.is_choice(input)) {
-      this.terminal.write(
-        ANSI.CLEAR_LINE + ANSI.START_LINE + ANSI.grey("> ") + ANSI.green(input)
-      );
-      return this.setState({ suggestion: "", isValidChoice: true });
+      this.terminal.write(this.prompt() + ANSI.green(input));
+      this.suggestion = "";
+      this.isValidChoice = true;
+      return;
     }
 
     // Otherwise check for new prefix
-    const suggestion = this.wasm.autocomplete(input);
-    if (suggestion.length > 0) {
+    this.suggestion = this.wasm.autocomplete(input);
+    if (this.suggestion.length > 0) {
       this.terminal.write(
-        PROMPT +
+        this.prompt() +
           input +
-          ANSI.grey(suggestion) +
-          ANSI.left(Math.max(0, suggestion.length + (input.length - inputPos)))
+          ANSI.grey(this.suggestion) +
+          ANSI.left(
+            Math.max(0, this.suggestion.length + (input.length - inputPos))
+          )
       );
-      return this.setState({ suggestion, isValidChoice: false });
+      this.isValidChoice = false;
+      return;
     }
 
     // Otherwise, it's an invalid input, print as red.
     this.terminal.write(
-      PROMPT + ANSI.red(input) + ANSI.left(Math.max(0, input.length - inputPos))
+      this.prompt() +
+        ANSI.red(input) +
+        ANSI.left(Math.max(0, input.length - inputPos))
     );
-    return this.setState({ suggestion: "", isValidChoice: false });
+    this.suggestion = "";
+    this.isValidChoice = false;
   };
 
   next = () => {
-    const result = this.wasm.next(this.typer.input);
+    const line = this.wasm.next(this.typer.input);
     const LineTag = this.wasm.LineTag;
-    const tag = result.tag();
-    const line = result.line();
 
-    switch (tag) {
+    switch (this.wasm.tag()) {
       case LineTag.Dialogue:
         const [speaker, text] = Object.entries(line)[0];
         if (typeof text === "string") {
           this.typer.typelns(ANSI.cyan(`${speaker}: `) + text.trimEnd());
         }
-        this.setState({ isAwaitingChoice: false });
+        this.isAwaitingChoice = false;
         break;
+
       case LineTag.Text:
         this.typer.typelns(ANSI.italics(line.trimEnd()));
-        this.setState({ isAwaitingChoice: false });
+        this.isAwaitingChoice = false;
         break;
+
       case LineTag.Choices:
         this.terminal.writeln("");
-        this.terminal.write(ANSI.grey("> "));
-        this.setState({ isAwaitingChoice: true });
+        this.terminal.write(this.prompt());
+        this.isAwaitingChoice = true;
+        if (line.timeout) {
+          this.setTimeoutInterval(line.timeout);
+        }
         break;
+
       case LineTag.InvalidChoice:
         this.typer.typelns("Invalid choice.");
         break;
+
       case LineTag.None:
-        this.setState({ isAwaitingChoice: true });
+        this.isAwaitingChoice = true;
         break;
     }
   };
@@ -105,7 +160,7 @@ export default class KataruXTerm extends React.Component<
 
     if (code === KEYS.ENTER) {
       this.onEnter();
-    } else if (this.state.isAwaitingChoice) {
+    } else if (this.isAwaitingChoice) {
       if (code === KEYS.BACKSPACE) {
         this.typer.onBackspace();
       } else if (code === KEYS.ARROW) {
@@ -123,15 +178,16 @@ export default class KataruXTerm extends React.Component<
   onEnter = () => {
     if (this.typer.isTyping()) {
       this.typer.flush();
-    } else if (!this.state.isAwaitingChoice || this.state.isValidChoice) {
+    } else if (!this.isAwaitingChoice || this.isValidChoice) {
+      this.clearTimeoutInterval();
       this.next();
       this.typer.clearInput();
-      this.setState({ isValidChoice: false });
+      this.isValidChoice = false;
     }
   };
 
   onTab = () => {
-    this.typer.onTextInput(this.state.suggestion);
+    this.typer.onTextInput(this.suggestion);
   };
 
   componentDidMount = () => {
