@@ -27,9 +27,7 @@ module.exports = (_, { mode }) => ({
       {
         test: /\.s?css$/i,
         use: [
-          mode === "production"
-            ? MiniCssExtractPlugin.loader
-            : "style-loader",
+          "style-loader",
           "css-loader",
           "sass-loader",
         ],
@@ -55,9 +53,9 @@ module.exports = (_, { mode }) => ({
       watchDirectories: ["kataru"]
     }),
 
-    new MiniCssExtractPlugin({
-      filename: "[name].css",
-      chunkFilename: "[id].css",
-    }),
+    // new MiniCssExtractPlugin({
+    //   filename: "[name].css",
+    //   chunkFilename: "[id].css",
+    // }),
   ],
 });
