@@ -49,3 +49,6 @@ wasm-bindgen-test = "0.2.45"
 
 [build-dependencies]
 kataru = {git = "https://github.com/Katsutoshii/kataru", branch = "main"}
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-mutable-globals"]
