@@ -52,7 +52,7 @@ module.exports = (_, { mode }) => ({
 
     new WasmPackPlugin({
       crateDirectory: __dirname,
-      watchDirectories: ["story"]
+      watchDirectories: ["kataru"]
     }),
 
     new MiniCssExtractPlugin({

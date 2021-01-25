@@ -8,16 +8,12 @@ mod tagger;
 use logger::log;
 use tagger::LineTag;
 
-// When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
-// allocator.
-//
-// If you don't want to use `wee_alloc`, you can safely delete this.
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 static mut STORY: Option<Story> = None;
-static mut CONFIG: Option<Config> = None;
+static mut BOOKMARK: Option<Bookmark> = None;
 static mut RUNNER: Option<Runner> = None;
 static mut LINE: Option<Line> = None;
 
@@ -25,9 +21,9 @@ static mut LINE: Option<Line> = None;
 pub fn init() {
     unsafe {
         STORY = Some(Story::deserialize(include_bytes!("../pkg/story")));
-        CONFIG = Some(Config::deserialize(include_bytes!("../pkg/config")));
+        BOOKMARK = Some(Bookmark::deserialize(include_bytes!("../pkg/bookmark")));
         RUNNER = Some(Runner::new(
-            CONFIG.as_mut().unwrap(),
+            BOOKMARK.as_mut().unwrap(),
             &STORY.as_ref().unwrap(),
         ));
         console_log!("Initialized story.");
@@ -37,7 +33,7 @@ pub fn init() {
 #[wasm_bindgen]
 pub fn next(input: &str) -> JsValue {
     unsafe {
-        LINE = RUNNER.as_mut().unwrap().next(input);
+        LINE = Some(RUNNER.as_mut().unwrap().next(input));
         JsValue::from_serde(&LINE).unwrap()
     }
 }

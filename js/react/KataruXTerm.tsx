@@ -4,28 +4,22 @@ import XTerm from "./ShadedXTerm";
 import * as ANSI from "../util/ansi";
 import * as KEYS from "../util/keycodes";
 import XTermTyper from "../util/XTermTyper";
-import { options } from "../util/XTermOptions";
+import { sleep } from "../util/async";
 
 type KataruXTermProps = {
   wasm: typeof import("../../pkg");
 };
 
-type KataruXTermState = {
+export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
   xtermRef: React.RefObject<XTerm>;
-};
-
-export default class KataruXTerm extends React.Component<
-  KataruXTermProps,
-  KataruXTermState
-> {
   typer: XTermTyper;
   wasm: typeof import("../../pkg");
-  terminal: xterm.Terminal;
   timeoutIntervalId: NodeJS.Timeout;
   timeRemaining: number;
   isAwaitingChoice: boolean;
   isValidChoice: boolean;
   suggestion: string;
+  initialized: boolean;
 
   constructor(props: KataruXTermProps) {
     super(props);
@@ -33,10 +27,8 @@ export default class KataruXTerm extends React.Component<
     this.isAwaitingChoice = false;
     this.isValidChoice = false;
     this.suggestion = "";
-
-    this.state = {
-      xtermRef: React.createRef(),
-    };
+    this.xtermRef = React.createRef();
+    this.initialized = false;
   }
 
   /// Returns an ANSI sequence to clear the line and write the prompt.
@@ -82,11 +74,9 @@ export default class KataruXTerm extends React.Component<
   };
 
   onInputChanged = (input: string, inputPos: number) => {
-    console.log("Input changed!");
-
     // If it's a valid choice, type in green.
     if (this.wasm.is_choice(input)) {
-      this.terminal.write(this.prompt() + ANSI.green(input));
+      this.typer.write(this.prompt() + ANSI.green(input));
       this.suggestion = "";
       this.isValidChoice = true;
       return;
@@ -95,7 +85,7 @@ export default class KataruXTerm extends React.Component<
     // Otherwise check for new prefix
     this.suggestion = this.wasm.autocomplete(input);
     if (this.suggestion.length > 0) {
-      this.terminal.write(
+      this.typer.write(
         this.prompt() +
           input +
           ANSI.grey(this.suggestion) +
@@ -108,7 +98,7 @@ export default class KataruXTerm extends React.Component<
     }
 
     // Otherwise, it's an invalid input, print as red.
-    this.terminal.write(
+    this.typer.write(
       this.prompt() +
         ANSI.red(input) +
         ANSI.left(Math.max(0, input.length - inputPos))
@@ -117,6 +107,16 @@ export default class KataruXTerm extends React.Component<
     this.isValidChoice = false;
   };
 
+  clearScreen = async () => {
+    await this.xtermRef.current.fadeOut(10);
+
+    this.typer.reset();
+    await sleep(50);
+    this.next();
+    await this.xtermRef.current.fadeIn(10);
+  };
+
+  // Next should only be called when there is no text currently typing.
   next = () => {
     const line = this.wasm.next(this.typer.input);
     const LineTag = this.wasm.LineTag;
@@ -125,19 +125,18 @@ export default class KataruXTerm extends React.Component<
       case LineTag.Dialogue:
         const [speaker, text] = Object.entries(line)[0];
         if (typeof text === "string") {
-          this.typer.typelns(ANSI.cyan(`${speaker}: `) + text.trimEnd());
+          this.typer.typelns(ANSI.cyan(`${speaker}: `) + text);
         }
         this.isAwaitingChoice = false;
         break;
 
       case LineTag.Text:
-        this.typer.typelns(ANSI.italics(line.trimEnd()));
+        this.typer.typelns(ANSI.italics(line));
         this.isAwaitingChoice = false;
         break;
 
       case LineTag.Choices:
-        this.terminal.writeln("");
-        this.terminal.write(this.prompt());
+        this.typer.write(this.prompt());
         this.isAwaitingChoice = true;
         if (line.timeout) {
           this.setTimeoutInterval(line.timeout);
@@ -146,6 +145,14 @@ export default class KataruXTerm extends React.Component<
 
       case LineTag.InvalidChoice:
         this.typer.typelns("Invalid choice.");
+        break;
+
+      case LineTag.Cmd:
+        switch (line.cmd) {
+          case "clearScreen":
+            this.clearScreen();
+            break;
+        }
         break;
 
       case LineTag.None:
@@ -178,8 +185,14 @@ export default class KataruXTerm extends React.Component<
   onEnter = () => {
     if (this.typer.isTyping()) {
       this.typer.flush();
-    } else if (!this.isAwaitingChoice || this.isValidChoice) {
-      this.clearTimeoutInterval();
+    } else if (
+      (this.initialized && !this.isAwaitingChoice) ||
+      this.isValidChoice
+    ) {
+      if (this.isValidChoice) {
+        this.typer.writeln("");
+        this.clearTimeoutInterval();
+      }
       this.next();
       this.typer.clearInput();
       this.isValidChoice = false;
@@ -190,13 +203,24 @@ export default class KataruXTerm extends React.Component<
     this.typer.onTextInput(this.suggestion);
   };
 
+  init = async () => {
+    let fadePromise = this.xtermRef.current.fadeIn(10);
+    this.typer.writeln(ANSI.green("Loading story..."));
+    this.wasm.init();
+    await fadePromise;
+    this.next();
+    this.initialized = true;
+  };
+
   componentDidMount = () => {
     // Add the starting text to the terminal
-    this.terminal = this.state.xtermRef.current.terminal;
-    this.typer = new XTermTyper(this.terminal, this.onInputChanged);
-    this.typer.type(ANSI.green("Loading story...\n"));
-    this.wasm.init();
-    this.next();
+    this.typer = new XTermTyper(
+      this.xtermRef.current.terminal,
+      this.onInputChanged
+    );
+
+    // Initializes Kataru async
+    this.init();
   };
 
   componentWillUnmount = () => {};
@@ -205,11 +229,7 @@ export default class KataruXTerm extends React.Component<
     return (
       <>
         {/* Create a new terminal and set it's ref. */}
-        <XTerm
-          ref={this.state.xtermRef}
-          onData={this.onData}
-          options={options}
-        />
+        <XTerm ref={this.xtermRef} onData={this.onData} />
       </>
     );
   };

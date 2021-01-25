@@ -2,7 +2,7 @@ import * as xterm from "xterm";
 import * as ANSI from "./ansi";
 import { breakLines, insertLineBreaks } from "./linebreak";
 
-const TYPE_TIME: number = 25;
+const TYPE_TIME: number = 15;
 const PUNCTUATION_MULTIPLIER: number = 5;
 
 /**
@@ -56,12 +56,13 @@ export default class XTermTyper {
         // Stop typing when reached the end of the output.
         if (this.outputPos + 1 >= this.output.length) {
             this.stopTyping();
+            this.terminal.writeln("");
             return;
         }
 
         // Add pause if the char is punctuation.
         let addedPause = 0;
-        if (/^[,.?!]$/.test(char)) {
+        if (/^[,.?!\n]$/.test(char)) {
             addedPause += PUNCTUATION_MULTIPLIER;
         }
         this.outputPos += 1;
@@ -69,16 +70,29 @@ export default class XTermTyper {
     };
 
     flush = () => {
-        this.writelns(this.output.substring(this.outputPos));
+        const remaining = this.output.substring(this.outputPos);
+        for (let line of remaining.split("\n")) {
+            this.terminal.writeln(line);
+        }
         this.stopTyping();
     }
 
+    reset = () => {
+        this.terminal.clear();
+    };
+
+    repos = () => {
+        this.terminal.write(ANSI.pos(0, 0));
+    }
+
+    write = (text: string) => this.terminal.write(text);
+
+    writeln = (text: string) => this.terminal.writeln(text);
+
     writelns = (text: string) => {
-        let lines = breakLines(text, this.maxLineLength);
-        this.terminal.write(lines.shift());
+        let lines = breakLines(text.trimEnd(), this.maxLineLength);
         for (var line of lines) {
-            this.terminal.writeln("");
-            this.terminal.write(line);
+            this.terminal.writeln(line);
         }
     };
 
@@ -88,7 +102,6 @@ export default class XTermTyper {
     };
 
     typelns = (text: string) => {
-        this.terminal.writeln("");
         this.type(insertLineBreaks(text, this.maxLineLength));
     };
 

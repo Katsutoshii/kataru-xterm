@@ -97,8 +97,9 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     {
         outputColor.rgb *= 1.0 - (0.15 * noise);
     }
-    
+
     // Shift green/blue channels (using the red channel)
-    outputColor.g = mix(outputColor.r, texture(inputBuffer, vec2(xpos + noise * 0.05, uv.y)).g, 0.75);
-    outputColor.b = mix(outputColor.r, texture(inputBuffer, vec2(xpos - noise * 0.05, uv.y)).b, 0.75);
+    outputColor.g = mix(outputColor.r, texture(inputBuffer, vec2(xpos + noise * 0.05, uv.y)).g, 0.75) - (0.5 * scaleFactor);
+    outputColor.b = mix(outputColor.r, texture(inputBuffer, vec2(xpos - noise * 0.05, uv.y)).b, 0.75) - (0.5 * scaleFactor);
+    outputColor.r -= (0.5 * scaleFactor);
 }

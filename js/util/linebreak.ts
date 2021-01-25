@@ -5,6 +5,7 @@ export const breakLines = (text: string, maxLength: number): Array<string> => {
 
     let lines = [];
     for (const line of text.split("\n")) {
+
         if (line.length <= maxLength) {
             lines.push(line);
             continue;

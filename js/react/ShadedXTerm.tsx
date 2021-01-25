@@ -5,6 +5,7 @@ import { FitAddon } from "xterm-addon-fit";
 import * as THREE from "three";
 import * as PP from "postprocessing";
 
+import { options } from "../util/XTermOptions";
 import * as KEYS from "../util/keycodes";
 import "xterm/css/xterm.css";
 import glitchShader from "../../shaders/glitch.glsl";
@@ -12,17 +13,17 @@ import glitchShader from "../../shaders/glitch.glsl";
 // We are using these as types.
 // eslint-disable-next-line no-unused-vars
 import { Terminal, ITerminalOptions, ITerminalAddon } from "xterm";
+import { sleep } from "../util/async";
+
+const SCALE_FACTOR_LOW: number = 0.01;
+const SCALE_FACTOR_MID: number = 0.06;
+const SCALE_FACTOR_HIGH: number = 0.3;
 
 interface IProps {
   /**
    * Class name to add to the terminal container.
    */
   className?: string;
-
-  /**
-   * Options to initialize the terminal with.
-   */
-  options?: ITerminalOptions;
 
   /**
    * Adds an event listener for when a data event fires. This happens for
@@ -32,9 +33,6 @@ interface IProps {
    */
   onData?(data: string): void;
 }
-
-const SCALE_FACTOR_LOW: number = 0.012;
-const SCALE_FACTOR_HIGH: number = 0.15;
 
 export default class ShadedXTerm extends React.Component<IProps> {
   /**
@@ -74,7 +72,7 @@ export default class ShadedXTerm extends React.Component<IProps> {
 
   setupTerminal() {
     // Setup the XTerm terminal.
-    this.terminal = new Terminal(this.props.options);
+    this.terminal = new Terminal(options);
 
     // Create Listeners
     this.terminal.onData(this.onData);
@@ -126,7 +124,7 @@ export default class ShadedXTerm extends React.Component<IProps> {
 
   animate = () => {
     for (let i = 0; i < this.timeUniforms.length; i++) {
-      this.timeUniforms[i].value = (this.clock.getElapsedTime() % 5) + 5;
+      this.timeUniforms[i].value = this.clock.getElapsedTime() + 1;
     }
 
     this.composer.render(this.clock.getDelta());
@@ -136,7 +134,7 @@ export default class ShadedXTerm extends React.Component<IProps> {
   animateLoop = () => {
     this.animationId = window.requestAnimationFrame(this.animateLoop);
     const now = performance.now();
-    if (now - this.lastRenderTime < 1000 / 60) {
+    if (now - this.lastRenderTime < 1000 / 30) {
       return;
     }
 
@@ -144,13 +142,9 @@ export default class ShadedXTerm extends React.Component<IProps> {
   };
 
   startAnimate = () => {
-    const fps = 1000 / 60;
-    this.lastRenderTime = fps;
-    for (const pass of this.passes) {
-      console.log(
-        pass.getFullscreenMaterial() && pass.getFullscreenMaterial().uniforms
-      );
-    }
+    const fms = 1000 / 30;
+    this.lastRenderTime = fms;
+
     this.timeUniforms = this.passes
       .filter((pass) => {
         return (
@@ -170,7 +164,6 @@ export default class ShadedXTerm extends React.Component<IProps> {
         );
       })
       .map((pass) => {
-        console.log({ scaleUniformPass: pass });
         return pass.getFullscreenMaterial().uniforms.e0ScaleFactor;
       });
 
@@ -212,7 +205,7 @@ export default class ShadedXTerm extends React.Component<IProps> {
           blendFunction: PP.BlendFunction.NORMAL,
           uniforms: new Map(
             Object.entries({
-              scaleFactor: new THREE.Uniform(this.scaleFactor),
+              scaleFactor: new THREE.Uniform(SCALE_FACTOR_LOW),
             })
           ),
         })
@@ -220,28 +213,45 @@ export default class ShadedXTerm extends React.Component<IProps> {
     ];
     for (const pass of this.passes) {
       this.composer.addPass(pass);
-      if (pass.getFullscreenMaterial()) {
-        console.log({ uniform: pass.getFullscreenMaterial().uniforms });
-      }
     }
 
     this.startAnimate();
   };
 
+  setScaleFactor = (scaleFactor: number) => {
+    for (let i = 0; i < this.scaleFactorUniforms.length; i++) {
+      this.scaleFactorUniforms[i].value = scaleFactor;
+    }
+  };
+
+  lerp = async (start: number, end: number, n: number, ms: number) => {
+    const delta = (end - start) / n;
+    let value = start;
+    for (let i = 0; i < n; ++i) {
+      this.setScaleFactor(value);
+      value += delta;
+      await sleep(ms);
+    }
+    this.setScaleFactor(end);
+  };
+
+  spikeGlitch = async () => {
+    await this.lerp(SCALE_FACTOR_LOW, SCALE_FACTOR_MID, 4, 25);
+    return this.lerp(SCALE_FACTOR_MID, SCALE_FACTOR_LOW, 4, 25);
+  };
+
+  fadeIn = async (n: number) => {
+    return this.lerp(SCALE_FACTOR_HIGH, SCALE_FACTOR_LOW, n, 50);
+  };
+
+  fadeOut = async (n: number) => {
+    return this.lerp(SCALE_FACTOR_LOW, SCALE_FACTOR_HIGH, n, 50);
+  };
+
   onData = (data: string) => {
     const code: Number = data.charCodeAt(0);
     if (code === KEYS.ENTER || code == KEYS.TAB) {
-      this.scaleFactor = SCALE_FACTOR_HIGH;
-      for (let i = 0; i < this.scaleFactorUniforms.length; i++) {
-        console.log("Setting scale factor", this.scaleFactor);
-        this.scaleFactorUniforms[i].value = this.scaleFactor;
-      }
-      setTimeout(() => {
-        this.scaleFactor = SCALE_FACTOR_LOW;
-        for (let i = 0; i < this.scaleFactorUniforms.length; i++) {
-          this.scaleFactorUniforms[i].value = this.scaleFactor;
-        }
-      }, 250);
+      this.spikeGlitch();
     }
     this.props.onData(data);
   };
