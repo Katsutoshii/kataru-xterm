@@ -6,6 +6,8 @@ Kataru repository: [Github](https://github.com/Katsutoshii/kataru.git)
 
 ## Development
 
+Instructions for getting set up to develop the project.
+
 ### Commands
 
 ```sh
