@@ -1,5 +1,4 @@
 import React from "react";
-import * as xterm from "xterm";
 import XTerm from "./ShadedXTerm";
 import * as ANSI from "../util/ansi";
 import * as KEYS from "../util/keycodes";
@@ -12,23 +11,21 @@ type KataruXTermProps = {
 
 export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
   xtermRef: React.RefObject<XTerm>;
-  typer: XTermTyper;
+  typer: XTermTyper | null = null;
   wasm: typeof import("../../pkg");
-  timeoutIntervalId: NodeJS.Timeout;
-  timeRemaining: number;
-  isAwaitingChoice: boolean;
-  isValidChoice: boolean;
-  suggestion: string;
-  initialized: boolean;
+  timeoutIntervalId: NodeJS.Timeout | null = null;
+  blinkIntervalId: NodeJS.Timeout | null = null;
+  blinkCount: number = 0;
+  timeRemaining: number = 0;
+  isAwaitingChoice: boolean = false;
+  isValidChoice: boolean = false;
+  suggestion: string = "";
+  interactable: boolean = false;
 
   constructor(props: KataruXTermProps) {
     super(props);
     this.wasm = props.wasm;
-    this.isAwaitingChoice = false;
-    this.isValidChoice = false;
-    this.suggestion = "";
     this.xtermRef = React.createRef();
-    this.initialized = false;
   }
 
   /// Returns an ANSI sequence to clear the line and write the prompt.
@@ -62,6 +59,8 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
   };
 
   timer = () => {
+    if (!this.typer) return;
+
     this.typer.triggerInputChanged();
     this.timeRemaining -= 1;
 
@@ -73,7 +72,44 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
     }
   };
 
+  setBlinkInterval = () => {
+    if (this.blinkIntervalId == null) {
+      this.blinkCount = 0;
+      this.blinkIntervalId = setInterval(this.blink, 500);
+    }
+  };
+
+  clearBlinkInterval = () => {
+    if (this.blinkIntervalId != null) {
+      clearInterval(this.blinkIntervalId);
+      this.blinkIntervalId = null;
+    }
+  };
+
+  blink = () => {
+    if (!this.interactable || !this.typer) return;
+
+    if (this.typer.isTyping() || this.isAwaitingChoice) return;
+
+    console.log("Blink!");
+    let output = ANSI.BACKSPACE.repeat(3);
+    switch (this.blinkCount) {
+      case 0:
+        output += ANSI.grey(" 🢂 ");
+        break;
+      case 1:
+        output += "   ";
+        break;
+    }
+
+    this.typer.write(output);
+
+    this.blinkCount = (this.blinkCount + 1) % 2;
+  };
+
   onInputChanged = (input: string, inputPos: number) => {
+    if (!this.typer) return;
+
     // If it's a valid choice, type in green.
     if (this.wasm.is_choice(input)) {
       this.typer.write(this.prompt() + ANSI.green(input));
@@ -107,23 +143,37 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
     this.isValidChoice = false;
   };
 
-  clearScreen = async () => {
-    await this.xtermRef.current.fadeOut(10);
+  onTypingDone = () => {
+    this.typer?.write("   ");
+    this.setBlinkInterval();
+  };
 
-    this.typer.reset();
-    await sleep(50);
+  clearScreen = async () => {
+    console.log("interactable = false");
+
+    this.interactable = false;
+    await this.xtermRef.current?.fadeOut(10);
+
+    this.typer?.reset();
+    await sleep(100);
+
     this.next();
-    await this.xtermRef.current.fadeIn(10);
+    await this.xtermRef.current?.fadeIn(10);
+    this.interactable = true;
+
+    console.log("interactable = true");
   };
 
   // Next should only be called when there is no text currently typing.
   next = () => {
+    if (!this.typer) return;
+
     const line = this.wasm.next(this.typer.input);
     const LineTag = this.wasm.LineTag;
 
     switch (this.wasm.tag()) {
       case LineTag.Dialogue:
-        const [speaker, text] = Object.entries(line)[0];
+        let [speaker, text] = Object.entries(line)[0];
         if (typeof text === "string") {
           this.typer.typelns(ANSI.cyan(`${speaker}: `) + text);
         }
@@ -163,8 +213,9 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
 
   // Handle data input.
   onData = (data: string) => {
-    const code: Number = data.charCodeAt(0);
+    if (!this.interactable || !this.typer) return;
 
+    const code: Number = data.charCodeAt(0);
     if (code === KEYS.ENTER) {
       this.onEnter();
     } else if (this.isAwaitingChoice) {
@@ -183,40 +234,60 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
   };
 
   onEnter = () => {
+    if (!this.typer) return;
+
     if (this.typer.isTyping()) {
       this.typer.flush();
-    } else if (
-      (this.initialized && !this.isAwaitingChoice) ||
-      this.isValidChoice
-    ) {
-      if (this.isValidChoice) {
-        this.typer.writeln("");
-        this.clearTimeoutInterval();
+    } else {
+      if (this.isAwaitingChoice) {
+        if (this.isValidChoice) {
+          this.selectChoice();
+        }
+      } else {
+        this.continue();
       }
-      this.next();
-      this.typer.clearInput();
-      this.isValidChoice = false;
     }
   };
 
   onTab = () => {
-    this.typer.onTextInput(this.suggestion);
+    this.typer?.onTextInput(this.suggestion);
   };
 
   init = async () => {
-    let fadePromise = this.xtermRef.current.fadeIn(10);
-    this.typer.writeln(ANSI.green("Loading story..."));
+    let fadePromise = this.xtermRef.current?.fadeIn(10);
+    this.typer?.writeln(ANSI.green("Loading story..."));
     this.wasm.init();
     await fadePromise;
+    this.interactable = true;
     this.next();
-    this.initialized = true;
+  };
+
+  continue = () => {
+    console.log("Continue!");
+
+    this.typer?.writeln(ANSI.BACKSPACE.repeat(3));
+    this.next();
+  };
+
+  selectChoice = () => {
+    console.log("Selecting choice!");
+
+    this.typer?.writeln("");
+    this.clearTimeoutInterval();
+    this.next();
+
+    this.isValidChoice = false;
+    this.typer?.clearInput();
   };
 
   componentDidMount = () => {
+    if (!this.xtermRef.current) return;
+
     // Add the starting text to the terminal
     this.typer = new XTermTyper(
       this.xtermRef.current.terminal,
-      this.onInputChanged
+      this.onInputChanged,
+      this.onTypingDone
     );
 
     // Initializes Kataru async

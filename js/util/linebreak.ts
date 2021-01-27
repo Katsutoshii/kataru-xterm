@@ -21,7 +21,7 @@ export const breakLines = (text: string, maxLength: number): Array<string> => {
             }
             lineTokens.push(token);
             const ansiCount = (token.match(/\u001b\[/g) || []).length;
-            lineLength += token.length + 1 - 2 * ansiCount;
+            lineLength += token.length + 1 - 3 * ansiCount;
         }
 
         if (lineTokens.length > 0) {

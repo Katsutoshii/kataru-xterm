@@ -20,7 +20,6 @@ Start:
     Welcome to Kataru!
     「カタル」へようこそ!
     Kataru is a dialogue engine built completely on top of YAML with a focus on ease of implementation and simplicity of writing.
-    Press enter to continue the story...
 
   # If you want to ignore whitespace, use `>-`.
   - >-
@@ -42,6 +41,7 @@ Start:
 
 End:
   - End of story. Thanks for playing!
+  - goto: Start
 
 Timeout:
   - No response, huh?

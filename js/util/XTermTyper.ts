@@ -18,20 +18,23 @@ export default class XTermTyper {
     output: string;
     outputPos: number;
     outputPause: number;
-    intervalId: NodeJS.Timeout;
+    intervalId: NodeJS.Timeout | null;
     onInputChanged: (input: string, inputPos: number) => void;
+    onTypingDone: () => void;
 
     maxLineLength: number;
 
-    constructor(terminal: xterm.Terminal, onInputChanged: (input: string, inputPos: number) => void) {
+    constructor(terminal: xterm.Terminal, onInputChanged: (input: string, inputPos: number) => void, onTypingDone: () => void) {
         this.terminal = terminal;
         this.input = "";
         this.inputPos = 0;
         this.output = "";
         this.outputPos = 0;
         this.outputPause = 0;
-        this.maxLineLength = this.terminal.cols;
+        this.maxLineLength = this.terminal.cols - 3;
+        this.intervalId = null;
         this.onInputChanged = onInputChanged.bind(this);
+        this.onTypingDone = onTypingDone.bind(this);
     }
 
     triggerInputChanged = () =>
@@ -56,7 +59,6 @@ export default class XTermTyper {
         // Stop typing when reached the end of the output.
         if (this.outputPos + 1 >= this.output.length) {
             this.stopTyping();
-            this.terminal.writeln("");
             return;
         }
 
@@ -71,8 +73,12 @@ export default class XTermTyper {
 
     flush = () => {
         const remaining = this.output.substring(this.outputPos);
-        for (let line of remaining.split("\n")) {
-            this.terminal.writeln(line);
+        let lines = remaining.split("\n");
+        let firstLine = lines.shift();
+        if (firstLine) this.terminal.write(firstLine);
+        for (var line of lines) {
+            this.terminal.writeln("");
+            this.terminal.write(line);
         }
         this.stopTyping();
     }
@@ -110,6 +116,7 @@ export default class XTermTyper {
         this.output = "";
         this.outputPos = 0;
         this.outputPause = 0;
+        this.onTypingDone();
     };
 
     setTypingInterval = () => {
