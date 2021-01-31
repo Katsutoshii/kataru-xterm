@@ -144,7 +144,7 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
   };
 
   onTypingDone = () => {
-    this.typer?.write("   ");
+    this.typer?.write(ANSI.grey(" 🢂 "));
     this.setBlinkInterval();
   };
 
@@ -196,6 +196,8 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
         break;
 
       case LineTag.Choices:
+        console.log({line});
+        
         this.typer.write(this.prompt());
         this.isAwaitingChoice = true;
         if (line.timeout) {

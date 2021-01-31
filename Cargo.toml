@@ -4,8 +4,10 @@ authors = ["You <you@example.com>"]
 categories = ["wasm"]
 description = "Kataru XTerm"
 edition = "2018"
+license = "MIT"
 name = "kataru-xterm"
 readme = "README.md"
+repository = "https://github.com/Katsutoshii/kataru-xterm"
 version = "0.1.0"
 
 [lib]

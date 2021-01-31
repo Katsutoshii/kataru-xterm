@@ -37,7 +37,7 @@ Start:
       continue: inv:Start
       stop: End
       ...: Timeout
-    timeout: 1
+    timeout: 10
 
 End:
   - End of story. Thanks for playing!
