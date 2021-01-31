@@ -1,7 +1,7 @@
 ---
 namespace: ""
 state:
-  var: 0
+  name: ""
 characters:
   Alice:
     description: Main character.
@@ -12,7 +12,8 @@ cmds:
 ---
 # Each passage is a key in the YAML file.
 Start:
-  # Commands can be called in the client using `cmd`.
+  # Commands can be called in the client using `[]`.
+  # The `{}` can be used for parameters, i.e. `command: {var1: 0`}.
   - [clearScreen: {}]
 
   # A single text block can have many lines using `|`.
@@ -21,10 +22,14 @@ Start:
     「カタル」へようこそ!
     Kataru is a dialogue engine built completely on top of YAML with a focus on ease of implementation and simplicity of writing.
 
+  # Get input from the user and store into variables.
+  - input:
+      name: What's your name?
+
   # If you want to ignore whitespace, use `>-`.
   - >-
-    Alice walks into the room,
-    her footsteps echoing through the halls.
+    Hello ${name},
+    are you ready for an epic story?
 
   # Character dialogue can be done using single-entry maps.
   - Alice: Hello, my name is Alice. This is how you write a dialogue line in Kataru!

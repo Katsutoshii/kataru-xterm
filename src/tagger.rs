@@ -8,6 +8,7 @@ pub enum LineTag {
     InvalidChoice,
     Dialogue,
     Text,
+    InputCmd,
     Cmds,
     None,
 }
@@ -20,6 +21,7 @@ impl LineTag {
                 Line::Dialogue(_) => LineTag::Dialogue,
                 Line::Text(_) => LineTag::Text,
                 Line::Cmds(_) => LineTag::Cmds,
+                Line::InputCmd(_) => LineTag::InputCmd,
                 Line::InvalidChoice => LineTag::InvalidChoice,
                 _ => LineTag::None,
             },
