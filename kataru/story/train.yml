@@ -5,7 +5,7 @@ state:
 
 ---
 Start:
-  - cmd: clearScreen
+  - [clearScreen: {}]
   - You walk into another room, where you find a monster!
   - What would you like to do?
   - choices:

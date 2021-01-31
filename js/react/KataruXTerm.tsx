@@ -164,6 +164,16 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
     console.log("interactable = true");
   };
 
+  runCommand = (command: string, params: any) => {
+    console.log({command, params});
+    
+    switch (command) {
+      case "clearScreen":
+        this.clearScreen();
+        break;
+    }
+  }
+
   // Next should only be called when there is no text currently typing.
   next = () => {
     if (!this.typer) return;
@@ -197,11 +207,15 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
         this.typer.typelns("Invalid choice.");
         break;
 
-      case LineTag.Cmd:
-        switch (line.cmd) {
-          case "clearScreen":
-            this.clearScreen();
-            break;
+      case LineTag.Cmds:
+        console.log("Commands");
+        
+        for (const cmd of line) {
+          console.log({cmd});
+          
+          for (const [command, params] of Object.entries(cmd)) {
+            this.runCommand(command, params);
+          }
         }
         break;
 

@@ -2,7 +2,7 @@ import * as xterm from "xterm";
 import * as ANSI from "./ansi";
 import { breakLines, insertLineBreaks } from "./linebreak";
 
-const TYPE_TIME: number = 15;
+const TYPE_TIME: number = 25;
 const PUNCTUATION_MULTIPLIER: number = 5;
 
 /**
@@ -121,6 +121,7 @@ export default class XTermTyper {
 
     setTypingInterval = () => {
         if (this.intervalId == null) {
+            console.log('Setting typing interval to ', TYPE_TIME);
             this.intervalId = setInterval(this.timer, TYPE_TIME);
         }
     };

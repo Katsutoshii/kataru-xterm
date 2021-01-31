@@ -13,7 +13,7 @@ cmds:
 # Each passage is a key in the YAML file.
 Start:
   # Commands can be called in the client using `cmd`.
-  - cmd: clearScreen
+  - [clearScreen: {}]
 
   # A single text block can have many lines using `|`.
   - |
@@ -32,7 +32,7 @@ Start:
   - Alice: It sure is, Bob!
   - Bob: Get ready though, soon you'll have to make a choice. Will you continue reading, or stop here?
 
-  # Choices aree represented as a mapping.
+  # Choices are represented as a mapping.
   - choices:
       continue: inv:Start
       stop: End

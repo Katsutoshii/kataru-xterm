@@ -8,7 +8,7 @@ state:
 
 ---
 Start:
-  - cmd: clearScreen
+  - [clearScreen: {}]
   - This is another passage in the same namespace, defined in a different file!
   - |
     Here let's show how we can use state to have nodes that are explorable at most once.

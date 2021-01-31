@@ -12,7 +12,7 @@ import glitchShader from "../../shaders/glitch.glsl";
 
 // We are using these as types.
 // eslint-disable-next-line no-unused-vars
-import { Terminal, ITerminalOptions, ITerminalAddon } from "xterm";
+import { Terminal } from "xterm";
 import { sleep } from "../util/async";
 
 const SCALE_FACTOR_LOW: number = 0.01;
@@ -34,6 +34,24 @@ interface IProps {
   onData?(data: string): void;
 }
 
+type XTermCanvases = {
+  screen: HTMLCanvasElement;
+  cursor: HTMLCanvasElement;
+  link: HTMLCanvasElement;
+}
+
+type XTermTextures = {
+  screen: THREE.CanvasTexture;
+  cursor: THREE.CanvasTexture;
+  link: THREE.CanvasTexture;
+}
+
+const LAYER_ZINDEX = {
+  screen: 0,
+  cursor: 1,
+  link: 2
+}
+
 export default class ShadedXTerm extends React.Component<IProps> {
   /**
    * The ref for the containing element.
@@ -52,7 +70,6 @@ export default class ShadedXTerm extends React.Component<IProps> {
   mesh: THREE.Mesh;
   camera: THREE.Camera;
   composer: any;
-  textures: any;
   lastRenderTime: number;
   clock: THREE.Clock;
   animationId: any;
@@ -61,9 +78,12 @@ export default class ShadedXTerm extends React.Component<IProps> {
   scaleFactorUniforms: any;
   scaleFactor: number;
 
+  // Layers
+  xtermCanvases: XTermCanvases;
+  xtermTextures: XTermTextures;
+
   constructor(props: IProps) {
     super(props);
-
     this.terminalRef = React.createRef();
     this.scaleFactor = SCALE_FACTOR_LOW;
 
@@ -78,31 +98,20 @@ export default class ShadedXTerm extends React.Component<IProps> {
     this.terminal.onData(this.onData);
   }
 
-  getXTermLayers = () => {
-    const xTermScreen = this.terminal.element;
-    return Array.from(xTermScreen.querySelectorAll("canvas"));
-  };
-
-  getSortedXTermLayers = () => {
-    const xTermLayers = this.getXTermLayers();
-
-    const getZIndex = (element) => {
-      const { zIndex } = window.getComputedStyle(element);
-      return zIndex === "auto" ? 0 : Number(zIndex);
-    };
-
-    const map = new Map(xTermLayers.map((el) => [el, getZIndex(el)]));
-    return xTermLayers.sort((a, b) => map.get(a) - map.get(b));
-  };
-
   addTextures = () => {
-    const xtermLayers = this.getSortedXTermLayers();
-    this.textures = [];
+    const xTermScreen = this.terminal.element;
+    if (!xTermScreen) return;
 
-    for (const [idx, canvas] of xtermLayers.entries()) {
-      const texture = new THREE.CanvasTexture(canvas);
-      this.textures.push(texture);
+    // Get canvas textures
+    const [link, cursor, screen] = Array.from(xTermScreen.querySelectorAll("canvas"));
+    this.xtermCanvases = {link, cursor, screen};
+    this.xtermTextures = {
+      link: new THREE.CanvasTexture(link),
+      cursor: new THREE.CanvasTexture(cursor),
+      screen: new THREE.CanvasTexture(screen)
+    }
 
+    for (const [key, texture] of Object.entries(this.xtermTextures)) {
       texture.minFilter = THREE.LinearFilter;
       const geometry = new THREE.PlaneGeometry(1, 1);
       const material = new THREE.MeshBasicMaterial({
@@ -110,17 +119,16 @@ export default class ShadedXTerm extends React.Component<IProps> {
         map: texture,
       });
       const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.z = idx;
+      mesh.position.z = LAYER_ZINDEX[key];
       this.scene.add(mesh);
     }
   };
 
-  refreshTextures = () => {
-    for (const texture of this.textures) {
+  textureRefresher = (...textures: THREE.CanvasTexture[]) => () => {
+    for (let texture of textures) {
       texture.needsUpdate = true;
     }
-    this.animate();
-  };
+  }
 
   animate = () => {
     for (let i = 0; i < this.timeUniforms.length; i++) {
@@ -146,35 +154,36 @@ export default class ShadedXTerm extends React.Component<IProps> {
     this.lastRenderTime = fms;
 
     this.timeUniforms = this.passes
-      .filter((pass) => {
+      .filter((pass: any) => {
         return (
           pass.getFullscreenMaterial() &&
           pass.getFullscreenMaterial().uniforms.time !== undefined
         );
       })
-      .map((pass) => {
+      .map((pass: any) => {
         return pass.getFullscreenMaterial().uniforms.time;
       });
 
     this.scaleFactorUniforms = this.passes
-      .filter((pass) => {
+      .filter((pass: any) => {
         return (
           pass.getFullscreenMaterial() &&
           pass.getFullscreenMaterial().uniforms.e0ScaleFactor !== undefined
         );
       })
-      .map((pass) => {
+      .map((pass: any) => {
         return pass.getFullscreenMaterial().uniforms.e0ScaleFactor;
       });
 
     this.clock.start();
     this.animateLoop();
-    this.terminal.onRender(this.refreshTextures);
-    this.terminal.onCursorMove(this.refreshTextures);
-    this.terminal.onSelectionChange(this.refreshTextures);
-    this.terminal.element.addEventListener("mouseup", this.refreshTextures);
-    this.terminal.element.addEventListener("mousedown", this.refreshTextures);
-    this.terminal.element.addEventListener("drag", this.refreshTextures);
+    this.terminal.onRender(this.textureRefresher(this.xtermTextures.screen, this.xtermTextures.cursor));
+    this.terminal.onSelectionChange(this.textureRefresher(this.xtermTextures.link));
+
+    if (!this.terminal.element) return;
+    this.terminal.element.addEventListener("mouseup", this.textureRefresher(this.xtermTextures.link));
+    this.terminal.element.addEventListener("mousedown", this.textureRefresher(this.xtermTextures.link));
+    this.terminal.element.addEventListener("drag", this.textureRefresher(this.xtermTextures.link));
   };
 
   webgl_init = () => {
@@ -187,6 +196,7 @@ export default class ShadedXTerm extends React.Component<IProps> {
 
     // Setup renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    if (!this.terminal.element) return;
     this.renderer.setSize(
       this.terminal.element.clientWidth,
       this.terminal.element.clientHeight
@@ -253,7 +263,8 @@ export default class ShadedXTerm extends React.Component<IProps> {
     if (code === KEYS.ENTER || code == KEYS.TAB) {
       this.spikeGlitch();
     }
-    this.props.onData(data);
+
+    if (this.props.onData) this.props.onData(data);
   };
 
   componentDidMount = () => {
