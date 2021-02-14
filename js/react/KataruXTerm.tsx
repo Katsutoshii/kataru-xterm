@@ -200,13 +200,12 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
 
         let [speaker, text] = Object.entries(line)[0];
         if (typeof text === "string") {
-          this.typer.typelns(ANSI.cyan(`${speaker}: `) + text);
+          if (speaker === "Narrator") {
+            this.typer.typelns(ANSI.italics(text));
+          } else {
+            this.typer.typelns(ANSI.cyan(`${speaker}: `) + text);
+          }
         }
-        this.status = Status.AwaitingText;
-        break;
-
-      case LineTag.Text:
-        this.typer.typelns(ANSI.italics(line));
         this.status = Status.AwaitingText;
         break;
 

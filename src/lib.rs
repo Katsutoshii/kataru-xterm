@@ -3,10 +3,7 @@ use wasm_bindgen::prelude::*;
 
 #[macro_use]
 mod logger;
-mod tagger;
-
 use logger::log;
-use tagger::LineTag;
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
