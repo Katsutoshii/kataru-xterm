@@ -12,7 +12,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 static mut STORY: Option<Story> = None;
 static mut BOOKMARK: Option<Bookmark> = None;
 static mut RUNNER: Option<Runner> = None;
-static mut LINE: Option<Line> = None;
+static mut LINE: Option<&Line> = None;
 
 #[wasm_bindgen]
 pub fn init() {
@@ -43,7 +43,7 @@ pub fn tag() -> LineTag {
 #[wasm_bindgen]
 pub fn autocomplete(input: &str) -> String {
     unsafe {
-        if let Some(Line::Choices(choices)) = &LINE {
+        if let Some(Line::Choices(choices)) = LINE {
             for (choice, _passage) in &choices.choices {
                 if choice.starts_with(input) && choice != input {
                     return choice[input.len()..].to_string();
