@@ -17,8 +17,8 @@ static mut LINE: Option<&Line> = None;
 #[wasm_bindgen]
 pub fn init() {
     unsafe {
-        STORY = Some(Story::deserialize(include_bytes!("../pkg/story")));
-        BOOKMARK = Some(Bookmark::deserialize(include_bytes!("../pkg/bookmark")));
+        STORY = Some(Story::from_mp(include_bytes!("../pkg/story")));
+        BOOKMARK = Some(Bookmark::from_mp(include_bytes!("../pkg/bookmark")));
         RUNNER = Some(Runner::new(
             BOOKMARK.as_mut().unwrap(),
             &STORY.as_ref().unwrap(),
