@@ -198,12 +198,12 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
     switch (this.wasm.tag()) {
       case LineTag.Dialogue:
 
-        let [speaker, text] = Object.entries(line)[0];
+        const { name, text } = line;
         if (typeof text === "string") {
-          if (speaker === "Narrator") {
+          if (name === "Narrator") {
             this.typer.typelns(ANSI.italics(text));
           } else {
-            this.typer.typelns(ANSI.cyan(`${speaker}: `) + text);
+            this.typer.typelns(ANSI.cyan(`${name}: `) + text);
           }
         }
         this.status = Status.AwaitingText;
@@ -217,7 +217,7 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
         }
         break;
 
-      case LineTag.InputCmd:
+      case LineTag.Input:
         for (const [_var, prompt] of Object.entries(line.input)) {
           this.typer.writeln(ANSI.cyan(`${prompt}:`));
           this.typer.write(this.prompt());
@@ -229,7 +229,7 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
         this.typer.typelns("Invalid choice.");
         break;
 
-      case LineTag.Cmds:
+      case LineTag.Commands:
         console.log("Commands");
 
         for (const cmd of line) {

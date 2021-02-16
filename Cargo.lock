@@ -237,7 +237,7 @@ dependencies = [
 [[package]]
 name = "kataru"
 version = "0.1.0"
-source = "git+https://github.com/Katsutoshii/kataru?branch=main#b0b9fe899239a8a698421007a48a2e2d9637ddc2"
+source = "git+https://github.com/Katsutoshii/kataru?branch=main#20b5778b0933be2deb6fc0b3098333ae33801f88"
 dependencies = [
  "bincode",
  "colored",
@@ -245,6 +245,7 @@ dependencies = [
  "html_parser",
  "lazy_static",
  "linear-map",
+ "maplit",
  "regex",
  "rmp-serde",
  "serde",

@@ -14,23 +14,27 @@ static mut BOOKMARK: Option<Bookmark> = None;
 static mut RUNNER: Option<Runner> = None;
 static mut LINE: Option<&Line> = None;
 
-#[wasm_bindgen]
-pub fn init() {
+fn try_init() -> Result<()> {
     unsafe {
-        STORY = Some(Story::from_mp(include_bytes!("../pkg/story")));
-        BOOKMARK = Some(Bookmark::from_mp(include_bytes!("../pkg/bookmark")));
+        STORY = Some(Story::from_mp(include_bytes!("../pkg/story"))?);
+        BOOKMARK = Some(Bookmark::from_mp(include_bytes!("../pkg/bookmark"))?);
         RUNNER = Some(Runner::new(
             BOOKMARK.as_mut().unwrap(),
             &STORY.as_ref().unwrap(),
-        ));
+        )?);
         console_log!("Initialized story.");
     }
+    Ok(())
+}
+#[wasm_bindgen]
+pub fn init() {
+    try_init().unwrap();
 }
 
 #[wasm_bindgen]
 pub fn next(input: &str) -> JsValue {
     unsafe {
-        LINE = Some(RUNNER.as_mut().unwrap().next(input));
+        LINE = Some(RUNNER.as_mut().unwrap().next(input).unwrap());
         JsValue::from_serde(&LINE).unwrap()
     }
 }
