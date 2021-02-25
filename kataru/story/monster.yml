@@ -1,5 +1,5 @@
 ---
-namespace: train
+namespace: monster
 state:
   strength: 0
 
@@ -24,10 +24,14 @@ Fight:
       - Should you try again?
       - choices:
           try again: Fight
+          fight: Fight
+          yes: Fight
+          no: Train
           train: Train
           ...: Timeout
 
 Train:
+  - Alrighty then, let's go train!
   - if strength < 3:
       - |
         *training noises*

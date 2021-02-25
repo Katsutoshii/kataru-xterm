@@ -9,7 +9,7 @@ state:
 ---
 Start:
   - [clearScreen: {}]
-  - This is another passage in the same namespace, defined in a different file!
+  - Narrator: This is another passage in the same namespace, defined in a different file!
   - |
     Here let's show how we can use state to have nodes that are explorable at most once.
   - goto: Investigate
@@ -43,4 +43,4 @@ Computer:
 
 Done:
   - ALl done exploring, eh? Let's go check out another example then.
-  - goto: train:Start
+  - goto: monster:Start

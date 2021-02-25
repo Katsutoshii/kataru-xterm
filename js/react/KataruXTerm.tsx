@@ -225,10 +225,6 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
         this.status = Status.EnteringInput;
         break;
 
-      case LineTag.InvalidChoice:
-        this.typer.typelns("Invalid choice.");
-        break;
-
       case LineTag.Commands:
         console.log("Commands");
 
@@ -242,6 +238,7 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
         break;
 
       case LineTag.None:
+      case LineTag.InvalidChoice:
         break;
     }
   };
@@ -275,7 +272,7 @@ export default class KataruXTerm extends React.Component<KataruXTermProps, {}> {
       // Do nothing for other control characters
     } else {
 
-      this.typer.onTextInput(data);
+      this.typer.onTextInput(data.toLowerCase());
     }
   };
 
