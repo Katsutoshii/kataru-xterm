@@ -1,25 +1,26 @@
 ---
-namespace: ""
+namespace: global
 
 state:
-  name: ""
-  var: 2
+  name: Player
 
 characters:
   Alice:
-    description: Main character.
   Bob:
-    description: Side kick.
   Narrator:
-    description: The narrator.
 
 commands:
-  clearScreen: { duration: 1 }
+  clearScreen:
+  save:
+  wave:
 
+attributes:
+  wave:
 ---
 # Each passage is a key in the YAML file.
 Start:
-  # Commands can be called in the client using `cmd`.
+  # Commands can be called in the client using `[]`.
+  # The `{}` can be used for parameters, i.e. `command: {var1: 0`}.
   - [clearScreen: {}]
 
   # A single text block can have many lines using `|`.
@@ -27,7 +28,6 @@ Start:
       Welcome to Kataru!
       「カタル」へようこそ!
 
-  # To reuse the same character, just don't include the tag!
   - Kataru is a dialogue engine built completely on top of YAML with a focus on ease of implementation and simplicity of writing.
 
   - input:
@@ -36,28 +36,34 @@ Start:
   # If you want to ignore whitespace, use `>-`.
   - >-
     Hello ${name},
-    are you ready for an epic story?
+    are you ready for an <wave>epic</wave> story?
 
+  - call: Conversation
+
+  # Choices are represented as a mapping.
+  - choices:
+      keep going:
+      continue: investigate:Start
+      quit:
+      stop: Stop
+      ...: Timeout
+    timeout: 10.0
+
+  # After call to the selected choice, the runner returns to the next line.
+  - End of story. Thanks for playing!
+
+  # To loop, use goto.
+  - call: Start
+
+Stop:
+  - All done, huh?
+
+Conversation:
   # Character dialogue can be done using single-entry maps.
   - Alice: Hello, my name is Alice. This is how you write a dialogue line in Kataru!
   - Bob: Hi Alice, I'm Bob. Here is another line of dialogue. Isn't it nice how all character names are validated upon parsing?
   - Alice: It sure is, Bob!
   - Bob: Get ready though, soon you'll have to make a choice. Will you continue reading, or stop here?
 
-  # Choices are represented as a mapping.
-  - choices:
-      continue: inv:Start
-      keep going: inv:Start
-      read on: inv:Start
-      stop: End
-      quit: End
-      ...: Timeout
-    timeout: 10
-
-End:
-  - End of story. Thanks for playing!
-  - goto: Start
-
 Timeout:
   - No response, huh?
-  - goto: End
